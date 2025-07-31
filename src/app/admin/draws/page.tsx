@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -17,8 +17,8 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { useToast } from "@/hooks/use-toast";
 import { PlusCircle, Loader2 } from "lucide-react";
-import { createDraw } from "./actions";
-import { draws } from "@/lib/data";
+import { createDraw, getDraws } from "./actions";
+import type { Draw } from "@/lib/types";
 import {
   Table,
   TableBody,
@@ -33,8 +33,19 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 export default function DrawsAdminPage() {
   const [open, setOpen] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
+  const [draws, setDraws = useState<Draw[]>([]);
   const { toast } = useToast();
 
+  useEffect(() => {
+    async function fetchDraws() {
+        setIsLoading(true);
+        const fetchedDraws = await getDraws();
+        setDraws(fetchedDraws);
+        setIsLoading(false);
+    }
+    fetchDraws();
+  }, []);
+  
   const handleFormSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     setIsLoading(true);
@@ -47,6 +58,8 @@ export default function DrawsAdminPage() {
         title: "Success!",
         description: result.message,
       });
+      const fetchedDraws = await getDraws();
+      setDraws(fetchedDraws);
       setOpen(false);
     } else {
       toast({
@@ -148,7 +161,8 @@ export default function DrawsAdminPage() {
                 </TableRow>
                 </TableHeader>
                 <TableBody>
-                {draws.map((draw) => {
+                {isLoading && <TableRow><TableCell colSpan={5} className="text-center"><Loader2 className="mx-auto h-8 w-8 animate-spin"/></TableCell></TableRow>}
+                {!isLoading && draws.map((draw) => {
                     const isActive = new Date(draw.endDate) > new Date();
                     return (
                     <TableRow key={draw.id}>

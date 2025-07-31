@@ -4,47 +4,74 @@
 import { useState, useMemo, useEffect } from 'react';
 import { useParams, notFound } from 'next/navigation';
 import Image from 'next/image';
-import { draws, tickets as allTickets } from '@/lib/data';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Ticket, Dices, CreditCard, PartyPopper, ArrowLeft, Search } from 'lucide-react';
 import { TicketDisplay } from '@/components/TicketDisplay';
 import { useToast } from '@/hooks/use-toast';
 import Link from 'next/link';
+import { doc, getDoc, collection, getDocs, query, where } from 'firebase/firestore';
+import { db } from '@/lib/firebase';
+import type { Draw, Ticket as TicketType } from '@/lib/types';
+import { Loader2 } from 'lucide-react';
 
 // Helper to generate a 6-digit string
 const generate6DigitString = () => Array.from({ length: 6 }, () => Math.floor(Math.random() * 10)).join('');
 
 export default function DrawDetailPage() {
+  const [draw, setDraw] = useState<Draw | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
   const [ticketNumbers, setTicketNumbers] = useState<string[]>(Array(6).fill(''));
   const [isPaid, setIsPaid] = useState(false);
   const [suggestedTickets, setSuggestedTickets] = useState<string[]>([]);
   const [availableFilteredTickets, setAvailableFilteredTickets] = useState<string[]>([]);
+  const [existingTicketNumbers, setExistingTicketNumbers] = useState<Set<string>>(new Set());
   const { toast } = useToast();
   
   const params = useParams();
   const id = params.id as string;
-  const draw = useMemo(() => draws.find(d => d.id === id), [id]);
 
-  const existingTicketNumbers = useMemo(() => {
-    if (!draw) return new Set<string>();
-    return new Set(allTickets.filter(t => t.drawId === draw.id).map(t => t.numbers));
-  }, [draw]);
-
-  const generateUniqueTicket = () => {
-    let newTicket;
-    do {
-      newTicket = generate6DigitString();
-    } while (existingTicketNumbers.has(newTicket));
-    return newTicket;
-  };
-  
   useEffect(() => {
-    if (draw) {
-      const recommendations = Array.from({ length: 3 }, () => generateUniqueTicket());
-      setSuggestedTickets(recommendations);
-    }
-  }, [draw]);
+    if (!id) return;
+
+    const fetchDrawAndTickets = async () => {
+        setIsLoading(true);
+        const drawRef = doc(db, 'draws', id);
+        const drawSnap = await getDoc(drawRef);
+
+        if (drawSnap.exists()) {
+            const drawData = drawSnap.data();
+            const fetchedDraw = {
+                id: drawSnap.id,
+                ...drawData,
+                startDate: drawData.startDate.toDate(),
+                endDate: drawData.endDate.toDate(),
+            } as Draw;
+            setDraw(fetchedDraw);
+
+            const ticketsRef = collection(db, 'tickets');
+            const q = query(ticketsRef, where('drawId', '==', id));
+            const ticketSnapshot = await getDocs(q);
+            const ticketNumbers = new Set(ticketSnapshot.docs.map(doc => doc.data().numbers as string));
+            setExistingTicketNumbers(ticketNumbers);
+            
+            const generateUniqueTicket = () => {
+              let newTicket;
+              do {
+                newTicket = generate6DigitString();
+              } while (ticketNumbers.has(newTicket));
+              return newTicket;
+            };
+            const recommendations = Array.from({ length: 3 }, () => generateUniqueTicket());
+            setSuggestedTickets(recommendations);
+        } else {
+            notFound();
+        }
+        setIsLoading(false);
+    };
+
+    fetchDrawAndTickets();
+  }, [id]);
 
   useEffect(() => {
     const hasInput = ticketNumbers.some(n => n !== '');
@@ -52,7 +79,8 @@ export default function DrawDetailPage() {
       const findAvailable = () => {
         const found: string[] = [];
         let attempts = 0;
-        while(found.length < 3 && attempts < 1000) {
+        // This is a naive search and can be slow with many tickets. For production, a more robust search/DB query is needed.
+        while(found.length < 3 && attempts < 10000) {
           const randomTicket = generate6DigitString();
           if (existingTicketNumbers.has(randomTicket)) {
             attempts++;
@@ -79,10 +107,14 @@ export default function DrawDetailPage() {
       setAvailableFilteredTickets([]);
     }
   }, [ticketNumbers, existingTicketNumbers]);
-
-  if (!draw) {
-    notFound();
-  }
+  
+  const generateUniqueTicket = () => {
+    let newTicket;
+    do {
+      newTicket = generate6DigitString();
+    } while (existingTicketNumbers.has(newTicket));
+    return newTicket;
+  };
 
   const generateRandomTicket = () => {
     const randomNumbers = generateUniqueTicket().split('');
@@ -125,9 +157,19 @@ export default function DrawDetailPage() {
         title: "Payment Successful!",
         description: `Your ticket ${ticketNumbers.join('')} has been purchased. Good luck!`,
       });
+      // Here you would add the ticket to the firestore 'tickets' collection
     }, 2000);
   };
   
+  if (isLoading) {
+    return <div className="container mx-auto py-12 px-4 flex justify-center items-center h-[calc(100vh-8rem)]"><Loader2 className="h-16 w-16 animate-spin text-primary" /></div>;
+  }
+  
+  if (!draw) {
+    // This will be handled by notFound() in useEffect, but as a fallback:
+    return <div className="container mx-auto py-12 px-4 text-center"><p>Draw not found.</p></div>;
+  }
+
   if (isPaid) {
     return (
       <div className="container mx-auto py-12 px-4 flex flex-col items-center text-center">

@@ -1,3 +1,4 @@
+
 import Link from "next/link";
 import Image from "next/image";
 import {
@@ -10,11 +11,12 @@ import {
 } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Ticket } from "lucide-react";
-import { draws } from "@/lib/data";
 import { Badge } from "@/components/ui/badge";
+import { getDraws } from "../admin/draws/actions";
 
-export default function DrawsPage() {
-  const ongoingDraws = draws.filter(d => d.endDate > new Date());
+export default async function DrawsPage() {
+  const allDraws = await getDraws();
+  const ongoingDraws = allDraws.filter(d => d.endDate > new Date());
 
   return (
     <div className="container mx-auto py-12 px-4">

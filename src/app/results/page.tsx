@@ -1,3 +1,4 @@
+
 import {
   Card,
   CardContent,
@@ -7,11 +8,56 @@ import {
 } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Award, Ticket, User } from "lucide-react";
-import { draws, tickets, users } from "@/lib/data";
 import { WinnerAddressModal } from "@/components/WinnerAddressModal";
+import { getDraws } from "../admin/draws/actions";
+import { collection, getDocs, doc, getDoc, query, where } from "firebase/firestore";
+import { db } from "@/lib/firebase";
+import { User as UserType, Ticket as TicketType } from "@/lib/types";
 
-export default function ResultsPage() {
-  const pastDraws = draws.filter(d => d.endDate <= new Date() && d.winningTicketId);
+// This is a placeholder for getting user by id. In a real app this would be a proper query.
+async function getUserById(id: string): Promise<UserType | null> {
+    if (!id) return null;
+    // In a real app, you would fetch user from a 'users' collection
+    // For this example, we return a mock user if id is 'user-1'
+    if (id === 'user-1') {
+        return {
+            id: 'user-1',
+            name: 'Alice',
+            phone: '123'
+        } as UserType
+    }
+    return null;
+}
+
+// This is a placeholder for getting ticket by id.
+async function getTicketById(id: string): Promise<TicketType | null> {
+    if (!id) return null;
+    const ticketSnap = await getDoc(doc(db, "tickets", id));
+    if (ticketSnap.exists()) {
+        const data = ticketSnap.data();
+        return {
+            id: ticketSnap.id,
+            ...data
+        } as TicketType;
+    }
+    return null;
+}
+
+
+export default async function ResultsPage() {
+  const allDraws = await getDraws();
+  const pastDraws = allDraws.filter(d => d.endDate <= new Date() && d.winningTicketId);
+
+  // We need to fetch winner and ticket for each draw
+  const drawsWithWinnerInfo = await Promise.all(
+      pastDraws.map(async (draw) => {
+          const winningTicket = draw.winningTicketId ? await getTicketById(draw.winningTicketId) : null;
+          // In a real app, winnerId would be on the ticket, or queried differently.
+          const winner = winningTicket ? await getUserById(winningTicket.userId) : null;
+          return {...draw, winningTicket, winner}
+      })
+  );
+
 
   return (
     <div className="container mx-auto py-12 px-4">
@@ -24,9 +70,7 @@ export default function ResultsPage() {
         </p>
       </div>
       <div className="space-y-8">
-        {pastDraws.map((draw) => {
-          const winningTicket = tickets.find(t => t.id === draw.winningTicketId);
-          const winner = users.find(u => u.id === draw.winnerId);
+        {drawsWithWinnerInfo.map((draw) => {
           return (
             <Card key={draw.id} className="shadow-lg">
               <CardHeader>
@@ -47,16 +91,16 @@ export default function ResultsPage() {
                   <div className="flex flex-col items-center p-4 bg-muted/50 rounded-lg">
                     <Award className="h-8 w-8 text-accent-foreground mb-2" />
                     <h3 className="font-semibold text-muted-foreground">Winner</h3>
-                    <p className="text-lg font-bold font-headline text-primary">{winner?.name || "Anonymous"}</p>
+                    <p className="text-lg font-bold font-headline text-primary">{draw.winner?.name || "Anonymous"}</p>
                   </div>
                   <div className="flex flex-col items-center p-4 bg-muted/50 rounded-lg">
                     <Ticket className="h-8 w-8 text-accent-foreground mb-2" />
                     <h3 className="font-semibold text-muted-foreground">Winning Ticket</h3>
-                    <p className="text-lg font-bold font-mono tracking-widest text-primary">{winningTicket?.numbers || "N/A"}</p>
+                    <p className="text-lg font-bold font-mono tracking-widest text-primary">{draw.winningTicket?.numbers || "N/A"}</p>
                   </div>
                    <div className="flex flex-col items-center p-4 bg-muted/50 rounded-lg justify-center">
                     {/* Assuming current user is 'user-1' for demo */}
-                    {winner?.id === "user-1" ? (
+                    {draw.winner?.id === "user-1" ? (
                       <WinnerAddressModal />
                     ) : (
                       <div className="flex items-center text-muted-foreground">

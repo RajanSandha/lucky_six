@@ -1,3 +1,4 @@
+
 import Link from "next/link";
 import Image from "next/image";
 import {
@@ -10,12 +11,15 @@ import {
 } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Ticket, Star, Users, ArrowRight } from "lucide-react";
-import { draws } from "@/lib/data";
 import { Countdown } from "@/components/Countdown";
 import { RecentWinners } from "@/components/RecentWinners";
+import { getDraws } from "./admin/draws/actions";
+import type { Draw } from "@/lib/types";
 
-export default function Home() {
-  const mainDraw = draws.find(d => d.id === '1');
+export default async function Home() {
+  const allDraws = await getDraws();
+  const ongoingDraws = allDraws.filter(d => d.endDate > new Date());
+  const mainDraw = ongoingDraws.length > 0 ? ongoingDraws[0] : null;
 
   return (
     <div className="flex flex-col items-center">
