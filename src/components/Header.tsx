@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { Ticket, Menu, X } from "lucide-react";
+import { Ticket, Menu, X, LogOut } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
   Sheet,
@@ -13,17 +13,24 @@ import {
 import { useState } from "react";
 import { cn } from "@/lib/utils";
 import { usePathname } from "next/navigation";
-
-const navItems = [
-  { href: "/draws", label: "Draws" },
-  { href: "/results", label: "Results" },
-  { href: "/admin/draws", label: "Draws Management" },
-  { href: "/admin/fraud-detection", label: "Fraud Detection" },
-];
+import { useAuth } from "@/context/AuthContext";
 
 export default function Header() {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const pathname = usePathname();
+  const { user, logout } = useAuth();
+  
+  const navItems = [
+    { href: "/draws", label: "Draws", public: true },
+    { href: "/results", label: "Results", public: true },
+    { href: "/admin/draws", label: "Draws Management", admin: true },
+    { href: "/admin/fraud-detection", label: "Fraud Detection", admin: true },
+  ];
+
+  const visibleNavItems = navItems.filter(item => {
+      if (item.admin) return user?.isAdmin;
+      return item.public;
+  });
 
   return (
     <header className="sticky top-0 z-50 w-full border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
@@ -36,7 +43,7 @@ export default function Header() {
         </div>
 
         <nav className="hidden md:flex flex-1 items-center space-x-6 text-sm font-medium">
-          {navItems.map((item) => (
+          {visibleNavItems.map((item) => (
             <Link
               key={item.href}
               href={item.href}
@@ -51,12 +58,25 @@ export default function Header() {
         </nav>
 
         <div className="flex flex-1 items-center justify-end space-x-4">
-          <Button asChild variant="ghost">
-            <Link href="/auth/login">Log In</Link>
-          </Button>
-          <Button asChild className="hidden sm:inline-flex bg-primary hover:bg-primary/90 text-primary-foreground">
-            <Link href="/auth/register">Register</Link>
-          </Button>
+          {user ? (
+            <>
+              <span className="hidden sm:inline text-sm text-muted-foreground">Welcome, {user.name}!</span>
+              <Button onClick={logout} variant="ghost" size="icon">
+                <LogOut className="h-5 w-5" />
+                <span className="sr-only">Log Out</span>
+              </Button>
+            </>
+          ) : (
+            <>
+              <Button asChild variant="ghost">
+                <Link href="/auth/login">Log In</Link>
+              </Button>
+              <Button asChild className="hidden sm:inline-flex bg-primary hover:bg-primary/90 text-primary-foreground">
+                <Link href="/auth/register">Register</Link>
+              </Button>
+            </>
+          )}
+
 
           <Sheet open={isMenuOpen} onOpenChange={setIsMenuOpen}>
             <SheetTrigger asChild className="md:hidden">
@@ -80,7 +100,7 @@ export default function Header() {
                     </SheetClose>
                 </div>
                 <nav className="flex flex-col gap-4 mt-8">
-                  {navItems.map((item) => (
+                  {visibleNavItems.map((item) => (
                     <Link
                       key={item.href}
                       href={item.href}
@@ -95,12 +115,20 @@ export default function Header() {
                   ))}
                 </nav>
                 <div className="mt-auto flex flex-col gap-2">
-                   <Button asChild variant="outline" onClick={() => setIsMenuOpen(false)}>
-                        <Link href="/auth/login">Log In</Link>
-                    </Button>
-                    <Button asChild onClick={() => setIsMenuOpen(false)}>
-                        <Link href="/auth/register">Register</Link>
-                    </Button>
+                    {user ? (
+                        <Button onClick={() => { logout(); setIsMenuOpen(false); }} variant="outline">
+                            Log Out
+                        </Button>
+                    ) : (
+                        <>
+                            <Button asChild variant="outline" onClick={() => setIsMenuOpen(false)}>
+                                    <Link href="/auth/login">Log In</Link>
+                            </Button>
+                            <Button asChild onClick={() => setIsMenuOpen(false)}>
+                                <Link href="/auth/register">Register</Link>
+                            </Button>
+                        </>
+                    )}
                 </div>
               </div>
             </SheetContent>

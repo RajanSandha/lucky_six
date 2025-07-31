@@ -14,6 +14,8 @@ import { Loader2, ShieldCheck, ShieldAlert } from "lucide-react";
 import { handleFraudCheck } from "./actions";
 import type { DetectFraudulentUserInput, DetectFraudulentUserOutput } from "@/ai/flows/detect-fraudulent-user";
 import { Progress } from "@/components/ui/progress";
+import withAdminAuth from '@/components/withAdminAuth';
+
 
 const FormSchema = z.object({
   userName: z.string().min(1, "User name is required"),
@@ -24,7 +26,7 @@ const FormSchema = z.object({
   otpVerificationSuccessRate: z.coerce.number().min(0).max(1, "Rate must be between 0 and 1"),
 });
 
-export default function FraudDetectionPage() {
+function FraudDetectionPage() {
   const [isLoading, setIsLoading] = useState(false);
   const [result, setResult] = useState<DetectFraudulentUserOutput | null>(null);
   const { toast } = useToast();
@@ -153,3 +155,5 @@ export default function FraudDetectionPage() {
     </div>
   );
 }
+
+export default withAdminAuth(FraudDetectionPage);

@@ -16,6 +16,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useToast } from '@/hooks/use-toast';
 import { ArrowRight } from 'lucide-react';
+import { useAuth } from '@/context/AuthContext';
 
 export default function LoginPage() {
   const [step, setStep] = useState(1);
@@ -23,9 +24,11 @@ export default function LoginPage() {
   const [otp, setOtp] = useState(Array(6).fill(''));
   const router = useRouter();
   const { toast } = useToast();
+  const { login } = useAuth();
 
   const handleSendOtp = (e: React.FormEvent) => {
     e.preventDefault();
+    // In a real app, this would use Firebase to send an OTP
     toast({
         title: "OTP Sent!",
         description: `An OTP has been sent to ${phone}. (Hint: It's 123456)`
@@ -33,15 +36,23 @@ export default function LoginPage() {
     setStep(2);
   };
   
-  const handleVerifyOtp = (e: React.FormEvent) => {
+  const handleVerifyOtp = async (e: React.FormEvent) => {
     e.preventDefault();
     if(otp.join('') === '123456') {
-        toast({
-            title: "Login Successful!",
-            description: `Welcome back!`
-        });
-        // In a real app, you would create a session here
-        router.push('/');
+        const success = await login(phone);
+        if (success) {
+            toast({
+                title: "Login Successful!",
+                description: `Welcome back!`
+            });
+            router.push('/');
+        } else {
+             toast({
+                title: "Login Failed",
+                description: "User not found. Please register first.",
+                variant: "destructive"
+            });
+        }
     } else {
         toast({
             title: "Invalid OTP",
@@ -60,6 +71,12 @@ export default function LoginPage() {
       if (value !== '' && index < 5) {
         document.getElementById(`otp-input-${index + 1}`)?.focus();
       }
+    }
+  };
+
+  const handleKeyDown = (index: number, e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (e.key === 'Backspace' && otp[index] === '' && index > 0) {
+      document.getElementById(`otp-input-${index - 1}`)?.focus();
     }
   };
 
@@ -108,6 +125,7 @@ export default function LoginPage() {
                             maxLength={1}
                             value={digit}
                             onChange={(e) => handleOtpChange(index, e.target.value)}
+                            onKeyDown={(e) => handleKeyDown(index, e)}
                             className="w-12 h-14 text-center text-2xl font-bold rounded-md border bg-background text-foreground focus:ring-2 focus:ring-ring"
                             required
                         />

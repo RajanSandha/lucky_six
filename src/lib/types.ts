@@ -4,6 +4,7 @@ export type User = {
   phone: string;
   address?: string;
   ticketIds: string[];
+  isAdmin?: boolean;
 };
 
 export type Ticket = {

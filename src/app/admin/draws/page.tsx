@@ -29,8 +29,9 @@ import {
 } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import withAdminAuth from '@/components/withAdminAuth';
 
-export default function DrawsAdminPage() {
+function DrawsAdminPage() {
   const [open, setOpen] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [draws, setDraws] = useState<Draw[]>([]);
@@ -185,3 +186,5 @@ export default function DrawsAdminPage() {
     </div>
   );
 }
+
+export default withAdminAuth(DrawsAdminPage);

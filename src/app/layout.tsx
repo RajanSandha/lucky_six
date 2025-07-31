@@ -3,6 +3,7 @@ import { cn } from "@/lib/utils";
 import { Toaster } from "@/components/ui/toaster";
 import Header from "@/components/Header";
 import Footer from "@/components/Footer";
+import { AuthProvider } from "@/context/AuthContext";
 import "./globals.css";
 
 export const metadata: Metadata = {
@@ -30,12 +31,14 @@ export default function RootLayout({
           "min-h-screen bg-background font-body text-foreground antialiased"
         )}
       >
-        <div className="relative flex min-h-screen flex-col">
-          <Header />
-          <main className="flex-1">{children}</main>
-          <Footer />
-        </div>
-        <Toaster />
+        <AuthProvider>
+          <div className="relative flex min-h-screen flex-col">
+            <Header />
+            <main className="flex-1">{children}</main>
+            <Footer />
+          </div>
+          <Toaster />
+        </AuthProvider>
       </body>
     </html>
   );

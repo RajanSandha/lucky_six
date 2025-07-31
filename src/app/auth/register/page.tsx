@@ -16,6 +16,8 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useToast } from '@/hooks/use-toast';
 import { ArrowRight, LogIn } from 'lucide-react';
+import { useAuth } from '@/context/AuthContext';
+
 
 export default function RegisterPage() {
   const [step, setStep] = useState(1);
@@ -24,9 +26,12 @@ export default function RegisterPage() {
   const [otp, setOtp] = useState(Array(6).fill(''));
   const router = useRouter();
   const { toast } = useToast();
+  const { register } = useAuth();
+
 
   const handleSendOtp = (e: React.FormEvent) => {
     e.preventDefault();
+    // In a real app, this would use Firebase to send an OTP
     toast({
         title: "OTP Sent!",
         description: `An OTP has been sent to ${phone}. (Hint: It's 123456)`
@@ -34,15 +39,23 @@ export default function RegisterPage() {
     setStep(2);
   };
   
-  const handleVerifyOtp = (e: React.FormEvent) => {
+  const handleVerifyOtp = async (e: React.FormEvent) => {
     e.preventDefault();
     if(otp.join('') === '123456') {
-        toast({
-            title: "Registration Successful!",
-            description: `Welcome to Lucky Six, ${name}!`
-        });
-        // In a real app, you would create a session here
-        router.push('/');
+        const success = await register(phone, name);
+        if (success) {
+            toast({
+                title: "Registration Successful!",
+                description: `Welcome to Lucky Six, ${name}!`
+            });
+            router.push('/');
+        } else {
+            toast({
+                title: "Registration Failed",
+                description: "A user with this phone number already exists.",
+                variant: "destructive"
+            });
+        }
     } else {
         toast({
             title: "Invalid OTP",
@@ -61,6 +74,12 @@ export default function RegisterPage() {
       if (value !== '' && index < 5) {
         document.getElementById(`otp-input-${index + 1}`)?.focus();
       }
+    }
+  };
+
+  const handleKeyDown = (index: number, e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (e.key === 'Backspace' && otp[index] === '' && index > 0) {
+      document.getElementById(`otp-input-${index - 1}`)?.focus();
     }
   };
 
@@ -114,6 +133,7 @@ export default function RegisterPage() {
                             maxLength={1}
                             value={digit}
                             onChange={(e) => handleOtpChange(index, e.target.value)}
+                            onKeyDown={(e) => handleKeyDown(index, e)}
                             className="w-12 h-14 text-center text-2xl font-bold rounded-md border bg-background text-foreground focus:ring-2 focus:ring-ring"
                             required
                         />
