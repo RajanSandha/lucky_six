@@ -1,3 +1,4 @@
+
 "use client";
 
 import { useState, useMemo, useEffect } from 'react';
@@ -99,6 +100,12 @@ export default function DrawDetailPage() {
     }
   };
 
+  const handleKeyDown = (index: number, e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (e.key === 'Backspace' && ticketNumbers[index] === '' && index > 0) {
+      document.getElementById(`ticket-input-${index - 1}`)?.focus();
+    }
+  };
+
   const selectTicket = (numbers: string) => {
     setTicketNumbers(numbers.split(''));
   }
@@ -169,6 +176,7 @@ export default function DrawDetailPage() {
                     maxLength={1}
                     value={num}
                     onChange={(e) => handleInputChange(index, e.target.value)}
+                    onKeyDown={(e) => handleKeyDown(index, e)}
                     className="w-12 h-14 text-center text-2xl font-bold rounded-md border bg-muted/50 text-foreground focus:ring-2 focus:ring-ring"
                   />
                 ))}
@@ -226,3 +234,4 @@ export default function DrawDetailPage() {
     </div>
   );
 }
+
