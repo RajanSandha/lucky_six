@@ -1,4 +1,5 @@
 import Link from "next/link";
+import Image from "next/image";
 import {
   Card,
   CardContent,
@@ -30,7 +31,12 @@ export default function DrawsPage() {
            const timeRemaining = draw.endDate.getTime() - new Date().getTime();
            const daysRemaining = Math.ceil(timeRemaining / (1000 * 3600 * 24));
           return(
-          <Card key={draw.id} className="flex flex-col shadow-lg hover:shadow-xl transition-shadow duration-300">
+          <Card key={draw.id} className="flex flex-col shadow-lg hover:shadow-xl transition-shadow duration-300 overflow-hidden">
+            {draw.imageUrl && (
+                <div className="relative h-48 w-full">
+                    <Image src={draw.imageUrl} alt={draw.name} layout="fill" objectFit="cover" data-ai-hint="lottery ticket" />
+                </div>
+            )}
             <CardHeader>
               <CardTitle className="font-headline text-2xl">{draw.name}</CardTitle>
               <CardDescription>{draw.description}</CardDescription>

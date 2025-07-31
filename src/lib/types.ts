@@ -24,4 +24,5 @@ export type Draw = {
   endDate: Date;
   winningTicketId?: string;
   winnerId?: string;
+  imageUrl?: string;
 };

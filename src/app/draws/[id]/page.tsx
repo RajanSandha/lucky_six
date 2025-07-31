@@ -3,6 +3,7 @@
 
 import { useState, useMemo, useEffect } from 'react';
 import { useParams, notFound } from 'next/navigation';
+import Image from 'next/image';
 import { draws, tickets as allTickets } from '@/lib/data';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -43,7 +44,7 @@ export default function DrawDetailPage() {
       const recommendations = Array.from({ length: 3 }, () => generateUniqueTicket());
       setSuggestedTickets(recommendations);
     }
-  }, [draw, existingTicketNumbers]);
+  }, [draw]);
 
   useEffect(() => {
     const hasInput = ticketNumbers.some(n => n !== '');
@@ -158,7 +159,12 @@ export default function DrawDetailPage() {
       <Button variant="ghost" asChild className="mb-4">
         <Link href="/draws"><ArrowLeft className="mr-2 h-4 w-4"/> Back to Draws</Link>
       </Button>
-      <Card className="w-full max-w-2xl mx-auto shadow-lg">
+      <Card className="w-full max-w-2xl mx-auto shadow-lg overflow-hidden">
+        {draw.imageUrl && (
+            <div className="relative h-64 w-full">
+                <Image src={draw.imageUrl} alt={draw.name} layout="fill" objectFit="cover" data-ai-hint="lottery prize" />
+            </div>
+        )}
         <CardHeader>
           <CardTitle className="font-headline text-3xl">{draw.name}</CardTitle>
           <CardDescription>Prize: ₹{draw.prize.toLocaleString('en-IN')} | Draw ends on: {draw.endDate.toLocaleDateString()}</CardDescription>
@@ -234,4 +240,3 @@ export default function DrawDetailPage() {
     </div>
   );
 }
-

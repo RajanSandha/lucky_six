@@ -1,4 +1,5 @@
 import Link from "next/link";
+import Image from "next/image";
 import {
   Card,
   CardContent,
@@ -76,7 +77,12 @@ export default function Home() {
       {mainDraw && (
         <section className="w-full bg-muted/50 py-16 md:py-24">
           <div className="container mx-auto px-4 flex justify-center">
-            <Card className="w-full max-w-2xl shadow-lg">
+            <Card className="w-full max-w-2xl shadow-lg overflow-hidden">
+               {mainDraw.imageUrl && (
+                <div className="relative h-64 w-full">
+                    <Image src={mainDraw.imageUrl} alt={mainDraw.name} layout="fill" objectFit="cover" data-ai-hint="lottery prize" />
+                </div>
+            )}
               <CardHeader>
                 <CardTitle className="font-headline text-2xl text-primary">{mainDraw.name}</CardTitle>
                 <CardDescription>{mainDraw.description}</CardDescription>

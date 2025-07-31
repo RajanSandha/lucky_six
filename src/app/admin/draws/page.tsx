@@ -86,6 +86,10 @@ export default function DrawsAdminPage() {
                   <Label htmlFor="name">Draw Name</Label>
                   <Input id="name" name="name" placeholder="e.g., Summer Super Draw" required />
                 </div>
+                 <div className="space-y-2">
+                  <Label htmlFor="image">Draw Image</Label>
+                  <Input id="image" name="image" type="file" accept="image/*" />
+                </div>
                 <div className="space-y-2">
                   <Label htmlFor="description">Description</Label>
                   <Textarea id="description" name="description" placeholder="A brief description of the draw" required />

@@ -16,6 +16,7 @@ export const draws: Draw[] = [
     ticketPrice: 10,
     startDate: new Date('2024-08-01'),
     endDate: new Date(new Date().getTime() + 5 * 24 * 60 * 60 * 1000), // 5 days from now
+    imageUrl: 'https://placehold.co/600x400.png',
   },
   {
     id: '2',
@@ -27,6 +28,7 @@ export const draws: Draw[] = [
     endDate: new Date(new Date().getTime() - 1 * 24 * 60 * 60 * 1000),
     winningTicketId: 'ticket-winner-2',
     winnerId: 'user-2',
+    imageUrl: 'https://placehold.co/600x400.png',
   },
   {
     id: '3',
@@ -38,6 +40,7 @@ export const draws: Draw[] = [
     endDate: new Date(new Date().getTime() - 8 * 24 * 60 * 60 * 1000),
     winningTicketId: 'ticket-winner-3',
     winnerId: 'user-3',
+    imageUrl: 'https://placehold.co/600x400.png',
   },
     {
     id: '4',
@@ -49,6 +52,7 @@ export const draws: Draw[] = [
     endDate: new Date(new Date().getTime() - 1 * 24 * 60 * 60 * 1000),
     winningTicketId: 'ticket-winner-4',
     winnerId: 'user-4',
+    imageUrl: 'https://placehold.co/600x400.png',
   }
 ];
 
