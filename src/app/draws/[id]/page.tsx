@@ -42,7 +42,7 @@ export default function DrawDetailPage() {
       const recommendations = Array.from({ length: 3 }, () => generateUniqueTicket());
       setSuggestedTickets(recommendations);
     }
-  }, [draw, existingTicketNumbers]);
+  }, [draw]);
 
   useEffect(() => {
     const partialInput = ticketNumbers.join('').trim();
