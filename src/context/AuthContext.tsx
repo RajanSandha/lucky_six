@@ -29,9 +29,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [user, setUser] = useState<(User & { isAdmin: boolean }) | null>(null);
   const [loading, setLoading] = useState(true);
 
-  // This would be in an environment variable in a real app
-  const ADMIN_PHONE_NUMBER = "+919999999999"; 
-
   useEffect(() => {
     // Check for a logged-in user in localStorage to persist session
     const storedUser = localStorage.getItem('lucky-six-user');
@@ -39,7 +36,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       const parsedUser = JSON.parse(storedUser);
       setUser({
         ...parsedUser,
-        isAdmin: parsedUser.phone === ADMIN_PHONE_NUMBER,
+        isAdmin: parsedUser.role === 'admin',
       });
     }
     setLoading(false);
@@ -59,7 +56,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       
       const userDoc = querySnapshot.docs[0];
       const userData = { id: userDoc.id, ...userDoc.data() } as User;
-      const fullUser = { ...userData, isAdmin: userData.phone === ADMIN_PHONE_NUMBER };
+      const fullUser = { ...userData, isAdmin: userData.role === 'admin' };
 
       setUser(fullUser);
       localStorage.setItem('lucky-six-user', JSON.stringify(fullUser));
@@ -95,7 +92,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         
         await setDoc(doc(db, "users", userId), newUser);
 
-        const fullUser = { ...newUser, isAdmin: newUser.phone === ADMIN_PHONE_NUMBER };
+        const fullUser = { ...newUser, isAdmin: newUser.role === 'admin' };
         setUser(fullUser);
         localStorage.setItem('lucky-six-user', JSON.stringify(fullUser));
         return true;

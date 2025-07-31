@@ -5,6 +5,7 @@ export type User = {
   address?: string;
   ticketIds: string[];
   isAdmin?: boolean;
+  role?: string;
 };
 
 export type Ticket = {
