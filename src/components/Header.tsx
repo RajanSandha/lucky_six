@@ -17,6 +17,7 @@ import { usePathname } from "next/navigation";
 const navItems = [
   { href: "/draws", label: "Draws" },
   { href: "/results", label: "Results" },
+  { href: "/admin/draws", label: "Draws Management" },
   { href: "/admin/fraud-detection", label: "Fraud Detection" },
 ];
 
