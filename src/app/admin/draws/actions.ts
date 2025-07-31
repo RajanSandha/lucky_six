@@ -28,7 +28,18 @@ async function deleteImage(imageUrl: string) {
 
 export async function createDraw(formData: FormData) {
   try {
+    const name = formData.get('name') as string;
+    const description = formData.get('description') as string;
+    const prize = formData.get('prize') as string;
+    const ticketPrice = formData.get('ticketPrice') as string;
+    const startDate = formData.get('startDate') as string;
+    const endDate = formData.get('endDate') as string;
     const imageFile = formData.get('image') as File | null;
+    
+    if (!name || !description || !prize || !ticketPrice || !startDate || !endDate) {
+      return { success: false, message: 'Please fill out all required fields.' };
+    }
+
     let imageUrl = 'https://placehold.co/600x400.png';
 
     if (imageFile && imageFile.size > 0) {
@@ -36,12 +47,12 @@ export async function createDraw(formData: FormData) {
     }
     
     const newDrawData = {
-      name: formData.get('name') as string,
-      description: formData.get('description') as string,
-      prize: Number(formData.get('prize')),
-      ticketPrice: Number(formData.get('ticketPrice')),
-      startDate: new Date(formData.get('startDate') as string),
-      endDate: new Date(formData.get('endDate') as string),
+      name,
+      description,
+      prize: Number(prize),
+      ticketPrice: Number(ticketPrice),
+      startDate: new Date(startDate),
+      endDate: new Date(endDate),
       imageUrl: imageUrl,
       createdAt: serverTimestamp(),
     };
@@ -53,9 +64,9 @@ export async function createDraw(formData: FormData) {
     revalidatePath('/');
 
     return { success: true, message: 'Draw created successfully!' };
-  } catch (error) {
+  } catch (error: any) {
     console.error('Error creating draw:', error);
-    return { success: false, message: 'Failed to create draw.' };
+    return { success: false, message: `Failed to create draw: ${error.message}` };
   }
 }
 
