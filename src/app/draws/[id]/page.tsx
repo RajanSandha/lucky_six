@@ -6,7 +6,7 @@ import { useParams, notFound } from 'next/navigation';
 import Image from 'next/image';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Ticket, Dices, CreditCard, PartyPopper, ArrowLeft, Search } from 'lucide-react';
+import { Ticket, Dices, CreditCard, PartyPopper, ArrowLeft, Search, RefreshCw } from 'lucide-react';
 import { TicketDisplay } from '@/components/TicketDisplay';
 import { useToast } from '@/hooks/use-toast';
 import Link from 'next/link';
@@ -25,6 +25,7 @@ export default function DrawDetailPage() {
   const [isLoading, setIsLoading] = useState(true);
   const [isBuying, setIsBuying] = useState(false);
   const [ticketNumbers, setTicketNumbers] = useState<string[]>(Array(6).fill(''));
+  const [lastPurchasedTicket, setLastPurchasedTicket] = useState<string[] | null>(null);
   const [isPaid, setIsPaid] = useState(false);
   const [suggestedTickets, setSuggestedTickets] = useState<string[]>([]);
   const [availableFilteredTickets, setAvailableFilteredTickets] = useState<string[]>([]);
@@ -34,46 +35,46 @@ export default function DrawDetailPage() {
   
   const params = useParams();
   const id = params.id as string;
+  
+  const fetchDrawAndTickets = async () => {
+    setIsLoading(true);
+    const drawRef = doc(db, 'draws', id);
+    const drawSnap = await getDoc(drawRef);
+
+    if (drawSnap.exists()) {
+        const drawData = drawSnap.data();
+        const fetchedDraw = {
+            id: drawSnap.id,
+            ...drawData,
+            startDate: drawData.startDate.toDate(),
+            endDate: drawData.endDate.toDate(),
+        } as Draw;
+        setDraw(fetchedDraw);
+
+        const ticketsRef = collection(db, 'tickets');
+        const q = query(ticketsRef, where('drawId', '==', id));
+        const ticketSnapshot = await getDocs(q);
+        const ticketNumbersSet = new Set(ticketSnapshot.docs.map(doc => doc.data().numbers as string));
+        setExistingTicketNumbers(ticketNumbersSet);
+        
+        const generateUniqueTicket = () => {
+          let newTicket;
+          do {
+            newTicket = generate6DigitString();
+          } while (ticketNumbersSet.has(newTicket));
+          return newTicket;
+        };
+        const recommendations = Array.from({ length: 3 }, () => generateUniqueTicket());
+        setSuggestedTickets(recommendations);
+    } else {
+        notFound();
+    }
+    setIsLoading(false);
+  };
+
 
   useEffect(() => {
     if (!id) return;
-
-    const fetchDrawAndTickets = async () => {
-        setIsLoading(true);
-        const drawRef = doc(db, 'draws', id);
-        const drawSnap = await getDoc(drawRef);
-
-        if (drawSnap.exists()) {
-            const drawData = drawSnap.data();
-            const fetchedDraw = {
-                id: drawSnap.id,
-                ...drawData,
-                startDate: drawData.startDate.toDate(),
-                endDate: drawData.endDate.toDate(),
-            } as Draw;
-            setDraw(fetchedDraw);
-
-            const ticketsRef = collection(db, 'tickets');
-            const q = query(ticketsRef, where('drawId', '==', id));
-            const ticketSnapshot = await getDocs(q);
-            const ticketNumbers = new Set(ticketSnapshot.docs.map(doc => doc.data().numbers as string));
-            setExistingTicketNumbers(ticketNumbers);
-            
-            const generateUniqueTicket = () => {
-              let newTicket;
-              do {
-                newTicket = generate6DigitString();
-              } while (ticketNumbers.has(newTicket));
-              return newTicket;
-            };
-            const recommendations = Array.from({ length: 3 }, () => generateUniqueTicket());
-            setSuggestedTickets(recommendations);
-        } else {
-            notFound();
-        }
-        setIsLoading(false);
-    };
-
     fetchDrawAndTickets();
   }, [id]);
 
@@ -148,6 +149,14 @@ export default function DrawDetailPage() {
   }
 
   const isTicketComplete = useMemo(() => ticketNumbers.every(num => num !== ''), [ticketNumbers]);
+  
+  const resetForNewPurchase = () => {
+    setIsPaid(false);
+    setLastPurchasedTicket(null);
+    setTicketNumbers(Array(6).fill(''));
+    // Refetch tickets to ensure our local list is up-to-date
+    fetchDrawAndTickets(); 
+  };
 
   const handlePayment = async () => {
     if (!user) {
@@ -168,6 +177,7 @@ export default function DrawDetailPage() {
       const result = await purchaseTicket(draw.id, user.id, finalTicketNumber);
 
       if (result.success) {
+        setLastPurchasedTicket(ticketNumbers);
         setIsPaid(true);
         toast({
           title: "Payment Successful!",
@@ -179,6 +189,10 @@ export default function DrawDetailPage() {
           description: result.message,
           variant: "destructive"
         });
+        // If ticket was taken, let's refresh the available tickets
+        if (result.message?.includes('taken')) {
+            fetchDrawAndTickets();
+        }
       }
       setIsBuying(false);
     }, 2000);
@@ -193,7 +207,7 @@ export default function DrawDetailPage() {
     return <div className="container mx-auto py-12 px-4 text-center"><p>Draw not found.</p></div>;
   }
 
-  if (isPaid) {
+  if (isPaid && lastPurchasedTicket) {
     return (
       <div className="container mx-auto py-12 px-4 flex flex-col items-center text-center">
         <Card className="w-full max-w-lg shadow-xl">
@@ -206,10 +220,14 @@ export default function DrawDetailPage() {
             <h1 className="text-3xl font-bold font-headline text-primary">Congratulations!</h1>
             <p className="text-muted-foreground mt-2 mb-4">You're officially in the draw.</p>
             <p className="font-semibold">Your ticket number is:</p>
-            <TicketDisplay numbers={ticketNumbers} />
+            <TicketDisplay numbers={lastPurchasedTicket} />
             <p className="mt-4 text-sm text-muted-foreground">We wish you the best of luck. Winners will be announced on {draw.endDate.toLocaleDateString()}.</p>
           </CardContent>
-          <CardContent>
+          <CardContent className="flex flex-col sm:flex-row items-center justify-center gap-4">
+            <Button onClick={resetForNewPurchase} variant="outline">
+              <RefreshCw className="mr-2 h-4 w-4"/>
+              Purchase Another Ticket
+            </Button>
             <Button asChild>
               <Link href="/draws">Back to Draws</Link>
             </Button>
