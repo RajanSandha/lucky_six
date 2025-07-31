@@ -45,17 +45,28 @@ export default function DrawDetailPage() {
   }, [draw, existingTicketNumbers]);
 
   useEffect(() => {
-    const partialInput = ticketNumbers.join('').trim();
-    if (partialInput.length > 1) {
+    const hasInput = ticketNumbers.some(n => n !== '');
+    if (hasInput) {
       const findAvailable = () => {
         const found: string[] = [];
         let attempts = 0;
         while(found.length < 3 && attempts < 1000) {
           const randomTicket = generate6DigitString();
-          if (!existingTicketNumbers.has(randomTicket) && randomTicket.includes(partialInput)) {
-            if(!found.includes(randomTicket)) {
-              found.push(randomTicket);
+          if (existingTicketNumbers.has(randomTicket)) {
+            attempts++;
+            continue;
+          }
+
+          let matches = true;
+          for(let i = 0; i < 6; i++) {
+            if(ticketNumbers[i] !== '' && ticketNumbers[i] !== randomTicket[i]) {
+              matches = false;
+              break;
             }
+          }
+
+          if (matches && !found.includes(randomTicket)) {
+              found.push(randomTicket);
           }
           attempts++;
         }
@@ -186,7 +197,7 @@ export default function DrawDetailPage() {
                   </div>
                 </div>
             )}
-             {availableFilteredTickets.length === 0 && (
+             {availableFilteredTickets.length === 0 && ticketNumbers.every(n => n === '') && (
                 <div>
                   <h4 className="font-semibold text-sm text-muted-foreground mb-2">Feeling lucky? Try one of these:</h4>
                   <div className="flex flex-wrap justify-center gap-2">
