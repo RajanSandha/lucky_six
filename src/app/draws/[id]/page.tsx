@@ -42,7 +42,7 @@ export default function DrawDetailPage() {
       const recommendations = Array.from({ length: 3 }, () => generateUniqueTicket());
       setSuggestedTickets(recommendations);
     }
-  }, [draw]);
+  }, [draw, existingTicketNumbers]);
 
   useEffect(() => {
     const partialInput = ticketNumbers.join('').trim();
@@ -158,7 +158,7 @@ export default function DrawDetailPage() {
                     maxLength={1}
                     value={num}
                     onChange={(e) => handleInputChange(index, e.target.value)}
-                    className="w-12 h-14 text-center text-2xl font-bold rounded-md border bg-background text-foreground focus:ring-2 focus:ring-ring"
+                    className="w-12 h-14 text-center text-2xl font-bold rounded-md border bg-muted/50 text-foreground focus:ring-2 focus:ring-ring"
                   />
                 ))}
               </div>
