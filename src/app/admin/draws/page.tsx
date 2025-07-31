@@ -33,7 +33,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 export default function DrawsAdminPage() {
   const [open, setOpen] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
-  const [draws, setDraws = useState<Draw[]>([]);
+  const [draws, setDraws] = useState<Draw[]>([]);
   const { toast } = useToast();
 
   useEffect(() => {
