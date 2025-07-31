@@ -14,6 +14,8 @@ import { doc, getDoc, collection, getDocs, query, where } from 'firebase/firesto
 import { db } from '@/lib/firebase';
 import type { Draw, Ticket as TicketType } from '@/lib/types';
 import { Loader2 } from 'lucide-react';
+import { useAuth } from '@/context/AuthContext';
+import { purchaseTicket } from './actions';
 
 // Helper to generate a 6-digit string
 const generate6DigitString = () => Array.from({ length: 6 }, () => Math.floor(Math.random() * 10)).join('');
@@ -21,12 +23,14 @@ const generate6DigitString = () => Array.from({ length: 6 }, () => Math.floor(Ma
 export default function DrawDetailPage() {
   const [draw, setDraw] = useState<Draw | null>(null);
   const [isLoading, setIsLoading] = useState(true);
+  const [isBuying, setIsBuying] = useState(false);
   const [ticketNumbers, setTicketNumbers] = useState<string[]>(Array(6).fill(''));
   const [isPaid, setIsPaid] = useState(false);
   const [suggestedTickets, setSuggestedTickets] = useState<string[]>([]);
   const [availableFilteredTickets, setAvailableFilteredTickets] = useState<string[]>([]);
   const [existingTicketNumbers, setExistingTicketNumbers] = useState<Set<string>>(new Set());
   const { toast } = useToast();
+  const { user } = useAuth();
   
   const params = useParams();
   const id = params.id as string;
@@ -143,21 +147,40 @@ export default function DrawDetailPage() {
     setTicketNumbers(numbers.split(''));
   }
 
-  const isTicketComplete = ticketNumbers.every(num => num !== '');
+  const isTicketComplete = useMemo(() => ticketNumbers.every(num => num !== ''), [ticketNumbers]);
 
-  const handlePayment = () => {
+  const handlePayment = async () => {
+    if (!user) {
+        toast({ title: "Not Logged In", description: "You must be logged in to purchase a ticket.", variant: "destructive" });
+        return;
+    }
+    if (!draw) return;
+
+    setIsBuying(true);
     toast({
       title: "Processing Payment...",
       description: "Please complete the payment on your UPI app.",
     });
 
-    setTimeout(() => {
-      setIsPaid(true);
-      toast({
-        title: "Payment Successful!",
-        description: `Your ticket ${ticketNumbers.join('')} has been purchased. Good luck!`,
-      });
-      // Here you would add the ticket to the firestore 'tickets' collection
+    // Simulate payment delay
+    setTimeout(async () => {
+      const finalTicketNumber = ticketNumbers.join('');
+      const result = await purchaseTicket(draw.id, user.id, finalTicketNumber);
+
+      if (result.success) {
+        setIsPaid(true);
+        toast({
+          title: "Payment Successful!",
+          description: `Your ticket ${finalTicketNumber} has been purchased. Good luck!`,
+        });
+      } else {
+        toast({
+          title: "Purchase Failed",
+          description: result.message,
+          variant: "destructive"
+        });
+      }
+      setIsBuying(false);
     }, 2000);
   };
   
@@ -271,11 +294,12 @@ export default function DrawDetailPage() {
         <CardContent>
           <Button 
             onClick={handlePayment} 
-            disabled={!isTicketComplete} 
+            disabled={!isTicketComplete || isBuying} 
             className="w-full bg-accent text-accent-foreground hover:bg-accent/90 font-bold"
             size="lg"
           >
-            <CreditCard className="mr-2 h-5 w-5"/> Pay ₹{draw.ticketPrice} with UPI
+            {isBuying ? <Loader2 className="mr-2 h-5 w-5 animate-spin" /> : <CreditCard className="mr-2 h-5 w-5"/>}
+            {isBuying ? "Processing..." : `Pay ₹${draw.ticketPrice} with UPI`}
           </Button>
         </CardContent>
       </Card>
