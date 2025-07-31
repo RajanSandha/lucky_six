@@ -1,0 +1,137 @@
+"use client";
+
+import { useState, useMemo } from 'react';
+import { notFound, useParams } from 'next/navigation';
+import { draws } from '@/lib/data';
+import { Button } from '@/components/ui/button';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Ticket, Dices, CreditCard, PartyPopper, ArrowLeft } from 'lucide-react';
+import { TicketDisplay } from '@/components/TicketDisplay';
+import { useToast } from '@/hooks/use-toast';
+import Link from 'next/link';
+
+export default function DrawDetailPage() {
+  const [ticketNumbers, setTicketNumbers] = useState<string[]>(Array(6).fill(''));
+  const [isPaid, setIsPaid] = useState(false);
+  const { toast } = useToast();
+
+  const params = useParams();
+  const id = params.id as string;
+  const draw = useMemo(() => draws.find(d => d.id === id), [id]);
+
+  if (!draw) {
+    notFound();
+  }
+  
+  const generateRandomTicket = () => {
+    const randomNumbers = Array.from({ length: 6 }, () => Math.floor(Math.random() * 10).toString());
+    setTicketNumbers(randomNumbers);
+  };
+
+  const handleInputChange = (index: number, value: string) => {
+    if (/^[0-9]$/.test(value) || value === '') {
+      const newTicketNumbers = [...ticketNumbers];
+      newTicketNumbers[index] = value;
+      setTicketNumbers(newTicketNumbers);
+
+      if (value !== '' && index < 5) {
+        document.getElementById(`ticket-input-${index + 1}`)?.focus();
+      }
+    }
+  };
+
+  const isTicketComplete = ticketNumbers.every(num => num !== '');
+
+  const handlePayment = () => {
+    toast({
+      title: "Processing Payment...",
+      description: "Please complete the payment on your UPI app.",
+    });
+
+    setTimeout(() => {
+        setIsPaid(true);
+        toast({
+            title: "Payment Successful!",
+            description: `Your ticket ${ticketNumbers.join('')} has been purchased. Good luck!`,
+        });
+    }, 2000);
+  };
+  
+  if (isPaid) {
+    return (
+        <div className="container mx-auto py-12 px-4 flex flex-col items-center text-center">
+            <Card className="w-full max-w-lg shadow-xl">
+                <CardHeader>
+                    <div className="mx-auto bg-green-100 dark:bg-green-900/50 p-4 rounded-full w-fit">
+                        <PartyPopper className="h-12 w-12 text-green-500"/>
+                    </div>
+                </CardHeader>
+                <CardContent>
+                    <h1 className="text-3xl font-bold font-headline text-primary">Congratulations!</h1>
+                    <p className="text-muted-foreground mt-2 mb-4">You're officially in the draw.</p>
+                    <p className="font-semibold">Your ticket number is:</p>
+                    <TicketDisplay numbers={ticketNumbers} />
+                    <p className="mt-4 text-sm text-muted-foreground">We wish you the best of luck. Winners will be announced on {draw.endDate.toLocaleDateString()}.</p>
+                </CardContent>
+                <CardContent>
+                    <Button asChild>
+                        <Link href="/draws">
+                            Back to Draws
+                        </Link>
+                    </Button>
+                </CardContent>
+            </Card>
+        </div>
+    )
+  }
+
+  return (
+    <div className="container mx-auto py-12 px-4">
+       <Button variant="ghost" asChild className="mb-4">
+        <Link href="/draws"><ArrowLeft className="mr-2 h-4 w-4"/> Back to Draws</Link>
+       </Button>
+      <Card className="w-full max-w-2xl mx-auto shadow-lg">
+        <CardHeader>
+          <CardTitle className="font-headline text-3xl">{draw.name}</CardTitle>
+          <CardDescription>Prize: ₹{draw.prize.toLocaleString('en-IN')} | Draw ends on: {draw.endDate.toLocaleDateString()}</CardDescription>
+        </CardHeader>
+        <CardContent>
+          <div className="text-center space-y-6">
+            <div>
+              <h3 className="font-semibold mb-2">Your Ticket</h3>
+              <div className="flex justify-center gap-2">
+                {ticketNumbers.map((num, index) => (
+                  <input
+                    key={index}
+                    id={`ticket-input-${index}`}
+                    type="text"
+                    maxLength={1}
+                    value={num}
+                    onChange={(e) => handleInputChange(index, e.target.value)}
+                    className="w-12 h-14 text-center text-2xl font-bold rounded-md border bg-background text-foreground focus:ring-2 focus:ring-ring"
+                  />
+                ))}
+              </div>
+            </div>
+            
+            <p className="text-sm text-muted-foreground">OR</p>
+            
+            <Button variant="outline" onClick={generateRandomTicket}>
+              <Dices className="mr-2 h-4 w-4"/> Generate Random Ticket
+            </Button>
+          </div>
+        </CardContent>
+        <CardContent>
+            <Button 
+                onClick={handlePayment} 
+                disabled={!isTicketComplete} 
+                className="w-full bg-accent text-accent-foreground hover:bg-accent/90 font-bold"
+                size="lg"
+            >
+                <CreditCard className="mr-2 h-5 w-5"/> Pay ₹{draw.ticketPrice} with UPI
+            </Button>
+        </CardContent>
+      </Card>
+    </div>
+  );
+}
