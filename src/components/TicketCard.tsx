@@ -27,12 +27,12 @@ export function TicketCard({ ticket, isEliminated = false, isFinalist = false, i
         )}>
             <div className="flex justify-center gap-1 md:gap-2 mb-3">
                 {numbers.map((num, index) => (
-                    <div
+                   <NumberRoller
                         key={index}
-                        className="w-8 h-10 sm:w-10 sm:h-12 flex items-center justify-center text-xl md:text-2xl font-bold rounded-md border bg-primary/10 text-primary"
-                    >
-                        {num}
-                    </div>
+                        finalNumber={num}
+                        isRolling={isEliminated}
+                        className="w-8 h-10 sm:w-10 sm:h-12 text-xl md:text-2xl"
+                    />
                 ))}
             </div>
             <div className="flex items-center justify-center gap-2 text-sm text-muted-foreground">
