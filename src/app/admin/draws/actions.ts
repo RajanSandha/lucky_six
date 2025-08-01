@@ -1,3 +1,4 @@
+
 'use server';
 
 import { revalidatePath } from 'next/cache';
@@ -184,7 +185,7 @@ export async function getDraws(): Promise<Draw[]> {
             ...data,
             startDate: data.startDate.toDate(),
             endDate: data.endDate.toDate(),
-            announcementDate: data.announcementDate.toDate(),
+            announcementDate: data.announcementDate ? data.announcementDate.toDate() : new Date(data.endDate.toDate().getTime() + 3600000), // Default to 1 hr after end if not set
             createdAt: data.createdAt?.toDate()
         } as Draw;
     });
@@ -202,7 +203,7 @@ export async function getDraw(id: string): Promise<Draw | null> {
             ...data,
             startDate: data.startDate.toDate(),
             endDate: data.endDate.toDate(),
-            announcementDate: data.announcementDate.toDate(),
+            announcementDate: data.announcementDate ? data.announcementDate.toDate() : new Date(data.endDate.toDate().getTime() + 3600000), // Default to 1 hr after end if not set
             createdAt: data.createdAt?.toDate()
         } as Draw;
     }
