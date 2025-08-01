@@ -4,7 +4,8 @@ import { useState, useMemo, useEffect, useCallback } from 'react';
 import type { Draw, Ticket, User } from '@/lib/types';
 import { Button } from './ui/button';
 import { TicketCard } from './TicketCard';
-import { setWinnerAsFinished } from '@/app/admin/draws/[id]/announce/actions';
+import { setWinnerAsFinished, getTicketsForDraw } from '@/app/admin/draws/[id]/announce/actions';
+import { getDraw } from '@/app/admin/draws/actions';
 import { useToast } from '@/hooks/use-toast';
 import { Loader2, Crown, PartyPopper, Hourglass, CheckCircle } from 'lucide-react';
 import { useWindowSize } from 'react-use';
@@ -43,13 +44,19 @@ function AnnounceWinnerComponent({ initialDraw, allTickets }: { initialDraw: Dra
 
   // Real-time listener for draw updates
   useEffect(() => {
+    if (!draw.id) return;
     const unsub = onSnapshot(doc(db, "draws", draw.id), (doc) => {
-        const data = doc.data() as Draw;
-        // Convert Timestamps
-        data.startDate = (data.startDate as any).toDate();
-        data.endDate = (data.endDate as any).toDate();
-        data.announcementDate = (data.announcementDate as any).toDate();
-        setDraw(data);
+        if (!doc.exists()) return;
+        const data = doc.data() as any; // Firestore data can be messy with timestamps
+        
+        const newDrawData: Draw = {
+            ...data,
+            id: doc.id,
+            startDate: data.startDate?.toDate ? data.startDate.toDate() : new Date(data.startDate),
+            endDate: data.endDate?.toDate ? data.endDate.toDate() : new Date(data.endDate),
+            announcementDate: data.announcementDate?.toDate ? data.announcementDate.toDate() : new Date(data.announcementDate),
+        };
+        setDraw(newDrawData);
     });
     return () => unsub();
   }, [draw.id]);
@@ -67,7 +74,11 @@ function AnnounceWinnerComponent({ initialDraw, allTickets }: { initialDraw: Dra
                         setIsRolling(false);
                         setHighlightedTicket(ticket.id);
                         setTimeout(() => {
-                          setRevealedInStage(prev => [...prev, ticket]);
+                          setRevealedInStage(prev => {
+                            // Avoid adding duplicates
+                            if (prev.find(t => t.id === ticket.id)) return prev;
+                            return [...prev, ticket];
+                          });
                           setHighlightedTicket(null);
                           resolve();
                         }, 1000); 
@@ -85,34 +96,42 @@ function AnnounceWinnerComponent({ initialDraw, allTickets }: { initialDraw: Dra
 
   const runStageAnimation = useCallback(async (stage: number) => {
     const winnerIds = draw.roundWinners?.[stage] || [];
-    if (!winnerIds.length) return;
+    if (!winnerIds.length || revealedInStage.length >= winnerIds.length) return;
 
     const ticketsToReveal = winnerIds.map(id => allTickets.find(t => t.id === id)).filter(Boolean) as FullTicket[];
     
     for (const ticket of ticketsToReveal) {
-      await runSlotMachine(ticket);
+        // Ensure we don't re-animate an already revealed ticket in the same stage
+        if(!revealedInStage.find(t => t.id === ticket.id)) {
+            await runSlotMachine(ticket);
+        }
     }
     
     // After stage animation is complete
     if (stage < 4) {
       // Pause for 10 seconds before starting next stage
-      setTimeout(() => {
+      const timeoutId = setTimeout(() => {
         setCurrentStage(prev => prev + 1);
         setRevealedInStage([]);
       }, 10000);
+
+      // Cleanup timeout on component unmount or stage change
+      return () => clearTimeout(timeoutId);
+
     } else {
       // This is the final winner
       await setWinnerAsFinished(draw.id);
       setIsCeremonyFinished(true);
     }
 
-  }, [draw, allTickets, runSlotMachine]);
+  }, [draw, allTickets, runSlotMachine, revealedInStage]);
 
 
   useEffect(() => {
     // This effect triggers the animation for the current stage
     if (draw.status === 'announcing' && stageConfig) {
-        runStageAnimation(currentStage);
+        const cleanup = runStageAnimation(currentStage);
+        return cleanup;
     }
   }, [draw.status, currentStage, runStageAnimation, stageConfig]);
 
@@ -200,7 +219,7 @@ function AnnounceWinnerComponent({ initialDraw, allTickets }: { initialDraw: Dra
               </CardHeader>
               <CardContent className="grid grid-cols-2 md:grid-cols-4 gap-2">
                  {revealedInStage.map(ticket => (
-                    <TicketCard key={ticket.id} ticket={ticket} isSelected={true}/>
+                    <TicketCard key={`revealed-${ticket.id}`} ticket={ticket} isSelected={true}/>
                  ))}
               </CardContent>
           </Card>
@@ -214,17 +233,19 @@ function AnnounceWinnerComponent({ initialDraw, allTickets }: { initialDraw: Dra
             <CardContent className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-6 lg:grid-cols-8 gap-2">
                 {allTickets.map(ticket => {
                     const isRevealed = revealedInStage.some(t => t.id === ticket.id);
-                    const currentRoundWinners = draw.roundWinners?.[currentStage] || [];
-                    const isInCurrentRound = currentRoundWinners.includes(ticket.id);
-                    const isEliminated = draw.roundWinners?.[1] && !currentRoundWinners.includes(ticket.id) && !draw.roundWinners[1].includes(ticket.id)
+                    const currentRoundWinnerIds = draw.roundWinners?.[currentStage] || [];
+                    const previousRoundWinnerIds = draw.roundWinners?.[currentStage - 1] || allTickets.map(t => t.id); // all tickets for stage 1
+                    
+                    const isStillIn = previousRoundWinnerIds.includes(ticket.id);
+                    const isEliminated = !isStillIn;
 
                     return (
                         <TicketCard
                             key={ticket.id}
                             ticket={ticket}
-                            isEliminated={isEliminated}
+                            isEliminated={isEliminated && !isRevealed}
                             isHighlighted={highlightedTicket === ticket.id}
-                            isSelected={isRevealed}
+                            isSelected={isRevealed || currentRoundWinnerIds.includes(ticket.id)}
                         />
                     );
                 })}
