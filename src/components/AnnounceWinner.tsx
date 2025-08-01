@@ -188,20 +188,6 @@ function AnnounceWinnerComponent({ initialDraw, allTickets: initialAllTickets }:
 
 
   useEffect(() => {
-    async function animate() {
-      if (draw.status === 'announcing' && stageConfig) {
-        await runStageAnimation(currentStage);
-      }
-    }
-    const timeoutId = animate();
-    // This is incorrect, but we need to return a cleanup function.
-    // The runStageAnimation returns a function, but only if stage < 4.
-    // So we can't rely on it.
-    // Let's restructure.
-    // The problem is `runStageAnimation` is async.
-    // So `useEffect` returns a promise.
-    
-    // The correct pattern
     let cleanup: (() => void) | undefined;
     async function stageAnimation() {
         if (draw.status === 'announcing' && stageConfig) {
@@ -236,7 +222,7 @@ function AnnounceWinnerComponent({ initialDraw, allTickets: initialAllTickets }:
         );
   }
   
-  if (draw.status !== 'announcing') {
+  if (draw.status !== 'announcing' || !stageConfig) {
     return (
        <div className="container mx-auto py-12 px-4 text-center">
             <Hourglass className="h-16 w-16 mx-auto text-primary mb-4" />
