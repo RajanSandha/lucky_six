@@ -28,7 +28,7 @@ export async function getTicketsForDraw(drawId: string, currentUserId?: string |
                 const userRef = doc(db, 'users', ticketData.userId);
                 const userSnap = await getDoc(userRef);
                 if (userSnap.exists()) {
-                    user = userSnap.data() as User;
+                    user = { id: userSnap.id, ...userSnap.data() } as User;
                 }
             }
             return {

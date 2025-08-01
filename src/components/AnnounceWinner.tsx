@@ -41,7 +41,7 @@ function AnnounceWinnerComponent({ draw, allTickets }: { draw: Draw; allTickets:
   const [currentPool, setCurrentPool] = useState<FullTicket[]>(allTickets);
   const [selectedForRound, setSelectedForRound] = useState<FullTicket[]>([]);
   const [highlightedTicket, setHighlightedTicket] = useState<string | null>(null);
-  const [countdown, setCountdown] = useState(5);
+  const [countdown, setCountdown] = useState(10);
   
   const { toast } = useToast();
   const { width, height } = useWindowSize();
@@ -68,13 +68,13 @@ function AnnounceWinnerComponent({ draw, allTickets }: { draw: Draw; allTickets:
                       setSelectedForRound(prev => [...prev, ticket]);
                       setHighlightedTicket(null);
                       resolve();
-                    }, 500); // Wait half a second on the highlighted ticket
-                }, 500); // Wait half a second after last number
+                    }, 500);
+                }, 500);
                 return;
             }
             
             setRevealedIndices(prev => [...prev, index]);
-            setTimeout(() => revealNumber(index + 1), 300); // Reveal one number every 300ms
+            setTimeout(() => revealNumber(index + 1), 300);
         };
 
         setTimeout(() => revealNumber(0), 100);
@@ -82,13 +82,14 @@ function AnnounceWinnerComponent({ draw, allTickets }: { draw: Draw; allTickets:
   }, []);
 
   const runStage = useCallback(async () => {
-    if (isProcessing || stage === STAGES.IDLE || stage === STAGES.WINNER) return;
+    if (isProcessing || stage === STAGES.IDLE || stage === STAGES.WINNER || !currentStageConfig.nextCount) return;
 
     setIsProcessing(true);
     
     try {
-        const roundWinners = await selectRoundWinners(draw.id, Object.keys(STAGE_CONFIG).indexOf(stage), currentPool, currentStageConfig.nextCount);
-        const ticketsToSelect = roundWinners.map(winner => allTickets.find(t => t.id === winner.id)).filter(Boolean) as FullTicket[];
+        const round = Object.keys(STAGE_CONFIG).indexOf(stage);
+        const winnersResponse = await selectRoundWinners(draw.id, round, currentPool, currentStageConfig.nextCount);
+        const ticketsToSelect = winnersResponse.map(winner => allTickets.find(t => t.id === winner.id)).filter(Boolean) as FullTicket[];
 
         for (const ticket of ticketsToSelect) {
             await runSlotMachine(ticket);
@@ -107,45 +108,46 @@ function AnnounceWinnerComponent({ draw, allTickets }: { draw: Draw; allTickets:
   }, [stage, isProcessing, currentPool, runSlotMachine, currentStageConfig, draw.id, allTickets, toast]);
 
   const handleNextStageClick = () => {
-    if (isProcessing || stage === STAGES.WINNER || intermission) return;
+    if (isProcessing || stage === STAGES.WINNER) return;
     const nextStageKey = currentStageConfig.nextStage as string;
     if (nextStageKey) {
         setStage(nextStageKey);
+        setSelectedForRound([]);
+        if (nextStageKey !== STAGES.WINNER) {
+          runStage();
+        } else {
+           setSelectedForRound(currentPool);
+        }
     }
   }
 
   useEffect(() => {
-    // This effect now only handles the countdown logic
-    if (!intermission) return;
-
-    setCountdown(5); // Reset countdown
-    const timer = setInterval(() => {
-      setCountdown(prev => {
-        if (prev <= 1) {
-          clearInterval(timer);
-          setIntermission(false);
-          setSelectedForRound([]);
-          if(currentStageConfig.nextStage === STAGES.WINNER) {
-            setStage(STAGES.WINNER);
-            setSelectedForRound(currentPool); // The final pool is the winner(s)
-          } else {
-             handleNextStageClick();
+    if (intermission) {
+      setCountdown(10);
+      const timer = setInterval(() => {
+        setCountdown(prev => {
+          if (prev <= 1) {
+            clearInterval(timer);
+            setIntermission(false);
+            if (currentStageConfig.nextStage === STAGES.WINNER) {
+              setStage(STAGES.WINNER);
+              setSelectedForRound(currentPool);
+            }
+            return 0;
           }
-          return 0;
-        }
-        return prev - 1;
-      });
-    }, 1000);
-
-    return () => clearInterval(timer);
+          return prev - 1;
+        });
+      }, 1000);
+      return () => clearInterval(timer);
+    }
   }, [intermission, currentStageConfig, currentPool]);
 
 
   useEffect(() => {
-    if (stage !== STAGES.IDLE && stage !== STAGES.WINNER && !isProcessing && !intermission) {
+    if (stage === STAGES.QUALIFIER && !isProcessing) {
       runStage();
     }
-  }, [stage]);
+  }, [stage, isProcessing, runStage]);
 
 
   const handleFinish = async () => {
@@ -192,12 +194,17 @@ function AnnounceWinnerComponent({ draw, allTickets }: { draw: Draw; allTickets:
         <p className="text-muted-foreground mt-2">
             {isProcessing ? (currentStageConfig.subTitle || `Draw: ${draw.name} | Total Tickets: ${allTickets.length}`) : `Draw: ${draw.name}`}
         </p>
-         {stage === STAGES.IDLE && (
+         {stage !== STAGES.QUALIFIER && !intermission && stage !== STAGES.IDLE && (
              <Button onClick={handleNextStageClick} disabled={isProcessing} className="mt-4">
                 {isProcessing && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
                 {currentStageConfig.buttonText}
             </Button>
          )}
+          {stage === STAGES.IDLE && (
+            <Button onClick={() => setStage(STAGES.QUALIFIER)} disabled={isProcessing} className="mt-4">
+                {currentStageConfig.buttonText}
+            </Button>
+          )}
       </div>
       
        {intermission && (
@@ -242,7 +249,7 @@ function AnnounceWinnerComponent({ draw, allTickets }: { draw: Draw; allTickets:
               </CardHeader>
               <CardContent className="grid grid-cols-2 md:grid-cols-4 gap-2">
                  {selectedForRound.map(ticket => (
-                    <TicketCard key={`selected-${ticket.id}`} ticket={ticket} isSelected={true}/>
+                    <TicketCard key={ticket.id} ticket={ticket} isSelected={true}/>
                  ))}
               </CardContent>
           </Card>
@@ -257,13 +264,13 @@ function AnnounceWinnerComponent({ draw, allTickets }: { draw: Draw; allTickets:
                 {allTickets.map(ticket => {
                     const isSelectedInRound = selectedForRound.some(t => t.id === ticket.id);
                     const isInCurrentPool = currentPool.some(p => p.id === ticket.id);
-                    const isEliminated = !isInCurrentPool && stage !== STAGES.IDLE;
+                    const isEliminated = !isInCurrentPool && stage !== STAGES.IDLE && !isSelectedInRound;
                     
                     return (
                         <TicketCard
                             key={ticket.id}
                             ticket={ticket}
-                            isEliminated={isEliminated && !isSelectedInRound}
+                            isEliminated={isEliminated}
                             isHighlighted={highlightedTicket === ticket.id}
                             isSelected={isSelectedInRound}
                         />
