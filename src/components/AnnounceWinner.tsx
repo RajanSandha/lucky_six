@@ -7,7 +7,7 @@ import { TicketCard } from './TicketCard';
 import { setWinner } from '@/app/admin/draws/[id]/announce/actions';
 import { useToast } from '@/hooks/use-toast';
 import { Loader2, Crown, PartyPopper } from 'lucide-react';
-import useWindowSize from 'react-use/lib/useWindowSize';
+import { useWindowSize } from 'react-use';
 import Confetti from 'react-confetti';
 
 const STAGES = {
