@@ -36,6 +36,20 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import withAdminAuth from '@/components/withAdminAuth';
 import { DrawForm } from "@/components/DrawForm";
 
+const getDrawStatus = (draw: Draw): { text: string; variant: "default" | "secondary" | "outline"; className?: string } => {
+  const now = new Date();
+  const startDate = new Date(draw.startDate);
+  const endDate = new Date(draw.endDate);
+
+  if (now < startDate) {
+    return { text: "Upcoming", variant: "outline", className: "border-blue-500/50 text-blue-600" };
+  } else if (now >= startDate && now <= endDate) {
+    return { text: "Active", variant: "default", className: "bg-green-500/20 text-green-700" };
+  } else {
+    return { text: "Finished", variant: "secondary" };
+  }
+}
+
 function DrawsAdminPage() {
   const [isFormOpen, setIsFormOpen] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
@@ -88,20 +102,6 @@ function DrawsAdminPage() {
       });
     }
     setIsDeleting(false);
-  }
-
-  const getDrawStatus = (draw: Draw): { text: string; variant: "default" | "secondary" | "outline"; className?: string } => {
-    const now = new Date();
-    const startDate = new Date(draw.startDate);
-    const endDate = new Date(draw.endDate);
-
-    if (now < startDate) {
-      return { text: "Upcoming", variant: "outline", className: "border-blue-500/50 text-blue-600" };
-    } else if (now >= startDate && now <= endDate) {
-      return { text: "Active", variant: "default", className: "bg-green-500/20 text-green-700" };
-    } else {
-      return { text: "Finished", variant: "secondary" };
-    }
   }
 
   return (
@@ -186,7 +186,7 @@ function DrawsAdminPage() {
                                   <AlertDialogDescription>
                                     This action cannot be undone. This will permanently delete the draw
                                     "{draw.name}". You can only delete draws with no purchased tickets.
-                                  </Description>
+                                  </AlertDialogDescription>
                                 </AlertDialogHeader>
                                 <AlertDialogFooter>
                                   <AlertDialogCancel disabled={isDeleting}>Cancel</AlertDialogCancel>
