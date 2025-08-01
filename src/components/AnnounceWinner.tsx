@@ -47,7 +47,7 @@ const shuffleArray = (array: any[]) => {
 
 function AnnounceWinnerComponent({ draw, allTickets }: { draw: Draw; allTickets: FullTicket[] }) {
   const [stage, setStage] = useState(STAGES.IDLE);
-  const [isProcessing, setIsProcessing] = useState(true);
+  const [isProcessing, setIsProcessing] = useState(false);
   const [currentPool, setCurrentPool] = useState<FullTicket[]>(allTickets);
   const [selectedForRound, setSelectedForRound] = useState<FullTicket[]>([]);
   const [highlightedTicket, setHighlightedTicket] = useState<string | null>(null);
@@ -91,13 +91,15 @@ function AnnounceWinnerComponent({ draw, allTickets }: { draw: Draw; allTickets:
             setTimeout(() => revealNumber(index + 1), (currentStageConfig.animationDelay || 5000) / 6);
         };
 
-        revealNumber(0);
+        // Start the rolling with a short delay to allow UI to update
+        setTimeout(() => revealNumber(0), 100);
     });
 };
 
 
   const runStage = async (currentStage: string, ticketsInPool: FullTicket[]) => {
       setIsProcessing(true);
+      setSelectedForRound([]);
       const stageConfig = STAGE_CONFIG[currentStage as keyof typeof STAGE_CONFIG];
       if (!stageConfig || !stageConfig.nextCount) {
           setIsProcessing(false);
@@ -106,29 +108,31 @@ function AnnounceWinnerComponent({ draw, allTickets }: { draw: Draw; allTickets:
 
       const shuffled = shuffleArray([...ticketsInPool]);
       const nextSelected = shuffled.slice(0, stageConfig.nextCount);
+      let newSelectedTickets = [];
 
       // Simulate selection animation
       for (const ticket of nextSelected) {
         await runSlotMachine(ticket);
+        newSelectedTickets.push(ticket);
       }
       
-      setCurrentPool(nextSelected);
+      setCurrentPool(newSelectedTickets);
       setStage(stageConfig.nextStage as string);
-      setSelectedForRound([]);
       setIsProcessing(false);
   }
 
   useEffect(() => {
     // Automatically start the first round
-    if (allTickets.length > 0 && stage === STAGES.IDLE) {
+    if (allTickets.length > 0 && stage === STAGES.IDLE && !isProcessing) {
+        setIsProcessing(true);
         setTimeout(() => {
-            setStage(STAGES.QUALIFIER);
+            runStage(STAGES.QUALIFIER, currentPool);
         }, 2000); // 2-second delay before starting
     }
-  }, [allTickets, stage]);
+  }, [allTickets, stage, isProcessing, currentPool]);
 
   const handleNextStageClick = () => {
-    if (!isProcessing && stage !== STAGES.WINNER) {
+    if (!isProcessing && stage !== STAGES.WINNER && stage !== STAGES.IDLE) {
         runStage(stage, currentPool);
     }
   }
@@ -146,6 +150,7 @@ function AnnounceWinnerComponent({ draw, allTickets }: { draw: Draw; allTickets:
   
    useEffect(() => {
     if (stage !== STAGES.IDLE && stage !== STAGES.WINNER && !isProcessing) {
+      if(stage === STAGES.QUALIFIER) return; // a useEffect handles this case already
       handleNextStageClick();
     }
    }, [stage, isProcessing]);
@@ -182,7 +187,7 @@ function AnnounceWinnerComponent({ draw, allTickets }: { draw: Draw; allTickets:
           {currentStageConfig.title}
         </h1>
         <p className="text-muted-foreground mt-2">
-            {isProcessing ? currentStageConfig.subTitle : `Draw: ${draw.name} | Total Tickets: ${allTickets.length}`}
+            {isProcessing ? (currentStageConfig.subTitle || `Draw: ${draw.name} | Total Tickets: ${allTickets.length}`) : `Ready for the next round?`}
         </p>
       </div>
       
@@ -228,7 +233,7 @@ function AnnounceWinnerComponent({ draw, allTickets }: { draw: Draw; allTickets:
                     <TicketCard
                         key={ticket.id}
                         ticket={ticket}
-                        isEliminated={!selectedForRound.includes(ticket) && selectedForRound.length > 0}
+                        isEliminated={!selectedForRound.includes(ticket) && selectedForRound.length > 0 && currentPool.some(p => p.id === ticket.id)}
                         isHighlighted={highlightedTicket === ticket.id}
                     />
                 ))}
