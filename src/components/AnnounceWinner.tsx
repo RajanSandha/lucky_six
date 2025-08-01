@@ -1,3 +1,4 @@
+
 "use client";
 
 import { useState, useMemo, useEffect } from 'react';
@@ -58,6 +59,7 @@ function AnnounceWinnerComponent({ draw, allTickets }: { draw: Draw; allTickets:
 
   const runStage = async (currentStage: string, ticketsInPool: FullTicket[]) => {
       setIsProcessing(true);
+      setSelectedForRound([]);
       const stageConfig = STAGE_CONFIG[currentStage as keyof typeof STAGE_CONFIG];
       if (!stageConfig || !stageConfig.nextCount) {
           setIsProcessing(false);
@@ -68,11 +70,13 @@ function AnnounceWinnerComponent({ draw, allTickets }: { draw: Draw; allTickets:
       const nextSelected = shuffled.slice(0, stageConfig.nextCount);
 
       // Simulate selection animation
+      const newSelectedForRound: FullTicket[] = [];
       for (let i = 0; i < nextSelected.length; i++) {
         await new Promise(resolve => setTimeout(resolve, stageConfig.duration));
         setHighlightedTicket(nextSelected[i].id);
         await new Promise(resolve => setTimeout(resolve, 100)); // brief highlight
-        setSelectedForRound(prev => [...prev, nextSelected[i]]);
+        newSelectedForRound.push(nextSelected[i]);
+        setSelectedForRound([...newSelectedForRound]);
         setHighlightedTicket(null);
       }
       
@@ -83,15 +87,16 @@ function AnnounceWinnerComponent({ draw, allTickets }: { draw: Draw; allTickets:
 
   useEffect(() => {
     // Automatically start the first round
-    setTimeout(() => {
-        setStage(STAGES.QUALIFIER);
-        runStage(STAGES.QUALIFIER, allTickets);
-    }, 2000); // 2-second delay before starting
+    if (allTickets.length > 0) {
+        setTimeout(() => {
+            setStage(STAGES.QUALIFIER);
+            runStage(STAGES.QUALIFIER, allTickets);
+        }, 2000); // 2-second delay before starting
+    }
   }, [allTickets]);
 
   const handleNextStageClick = () => {
     if (!isProcessing && stage !== STAGES.WINNER) {
-        setSelectedForRound([]);
         runStage(stage, currentPool);
     }
   }
