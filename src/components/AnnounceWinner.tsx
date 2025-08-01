@@ -93,10 +93,9 @@ function AnnounceWinnerComponent({ draw, allTickets }: { draw: Draw; allTickets:
   }, []);
 
   const runStage = useCallback(async () => {
-    if (isProcessing || !currentStageConfig.nextCount || stage === STAGES.WINNER) return;
+    if (isProcessing || !currentStageConfig.nextCount || stage === STAGES.WINNER || intermission) return;
 
     setIsProcessing(true);
-    setIntermission(false);
     
     const shuffled = shuffleArray([...currentPool]);
     const ticketsToSelect = shuffled.slice(0, currentStageConfig.nextCount);
@@ -114,7 +113,7 @@ function AnnounceWinnerComponent({ draw, allTickets }: { draw: Draw; allTickets:
         // If the next stage is winner, go straight to it
         setStage(STAGES.WINNER);
     }
-  }, [stage, isProcessing, currentPool, runSlotMachine, currentStageConfig]);
+  }, [stage, isProcessing, currentPool, runSlotMachine, currentStageConfig, intermission]);
   
   const handleStartFirstRound = () => {
     if (stage === STAGES.IDLE) {
@@ -129,32 +128,24 @@ function AnnounceWinnerComponent({ draw, allTickets }: { draw: Draw; allTickets:
   }, [stage, isProcessing, selectedForRound.length, runStage]);
 
   useEffect(() => {
-    let timer: NodeJS.Timeout;
-    if (intermission) {
-      setCountdown(10); // Reset countdown
-      timer = setInterval(() => {
-        setCountdown(prev => {
-          if (prev <= 1) {
-            clearInterval(timer);
-            setIntermission(false);
-            setStage(currentStageConfig.nextStage as string);
-            setSelectedForRound([]); // Clear for next round
-            // Trigger next round after state updates
-            setTimeout(() => {
-                const nextStage = STAGE_CONFIG[currentStageConfig.nextStage as keyof typeof STAGE_CONFIG];
-                // Automatically run the next stage if it's not the final one
-                 if (nextStage && nextStage.nextStage) {
-                     runStage();
-                 }
-            }, 100);
-            return 0;
-          }
-          return prev - 1;
-        });
-      }, 1000);
-    }
+    if (!intermission) return;
+
+    setCountdown(10); // Reset countdown
+    const timer = setInterval(() => {
+      setCountdown(prev => {
+        if (prev <= 1) {
+          clearInterval(timer);
+          setIntermission(false);
+          setSelectedForRound([]); // Clear for next round
+          setStage(currentStageConfig.nextStage as string);
+          return 0;
+        }
+        return prev - 1;
+      });
+    }, 1000);
+
     return () => clearInterval(timer);
-  }, [intermission, currentStageConfig.nextStage, runStage]);
+  }, [intermission, currentStageConfig.nextStage]);
 
 
   const handleNextStageClick = () => {
@@ -306,5 +297,7 @@ function AnnounceWinnerComponent({ draw, allTickets }: { draw: Draw; allTickets:
 
 
 export const AnnounceWinner = withAdminAuth(AnnounceWinnerComponent);
+
+    
 
     
