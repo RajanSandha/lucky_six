@@ -1,3 +1,4 @@
+
 "use client";
 
 import { useState, useEffect } from "react";
@@ -63,7 +64,7 @@ const getDrawStatus = (draw: Draw): { text: string; variant: "default" | "second
   } else if (now >= startDate && now <= endDate) {
     return { text: "Active", variant: "default", className: "bg-green-500/20 text-green-700" };
   } else if (now > endDate) {
-     return { text: "Awaiting Winner", variant: "outline", className: "border-yellow-500/50 text-yellow-600" };
+     return { text: "Awaiting Winner", variant: "outline", className: "border-yellow-500/50 text-yellow-700" };
   } else {
      return { text: "Unknown", variant: "outline"};
   }
@@ -222,7 +223,7 @@ function DrawsAdminPage() {
                 {isLoading && <TableRow><TableCell colSpan={6} className="text-center"><Loader2 className="mx-auto h-8 w-8 animate-spin"/></TableCell></TableRow>}
                 {!isLoading && draws.map((draw) => {
                     const status = getDrawStatus(draw);
-                    const isEditable = new Date(draw.startDate) > new Date() && !draw.status;
+                    const isEditable = status.text === "Upcoming";
                     const canAnnounce = status.text === "Awaiting Winner" || status.text === "Announcing";
                     const canBeDeleted = !draw.status || draw.status === 'upcoming'; 
 
@@ -307,3 +308,4 @@ function DrawsAdminPage() {
 }
 
 export default withAdminAuth(DrawsAdminPage);
+
