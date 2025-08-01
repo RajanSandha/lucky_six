@@ -1,3 +1,4 @@
+
 "use client";
 
 import type { Ticket, User } from '@/lib/types';
@@ -30,7 +31,7 @@ export function TicketCard({
     return (
         <div className={cn(
             "p-2 md:p-4 rounded-lg border-2 bg-card shadow-sm transition-all duration-300 ease-in-out",
-            isEliminated ? "border-destructive bg-destructive/10 opacity-30 transform scale-90" : "border-primary/20",
+            isEliminated && !isSelected ? "border-destructive bg-destructive/10 opacity-30 transform scale-90" : "border-primary/20",
             isFinalist && !isWinner ? "animate-pulse border-accent shadow-accent/50 shadow-lg" : "",
             isWinner ? "border-accent bg-accent/10 shadow-accent/50 shadow-xl" : "",
             isSelected ? "border-blue-500 bg-blue-500/10" : "",
