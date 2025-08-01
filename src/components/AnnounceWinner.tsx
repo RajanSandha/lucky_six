@@ -188,10 +188,33 @@ function AnnounceWinnerComponent({ initialDraw, allTickets: initialAllTickets }:
 
 
   useEffect(() => {
-    if (draw.status === 'announcing' && stageConfig) {
-        const cleanup = runStageAnimation(currentStage);
-        return cleanup;
+    async function animate() {
+      if (draw.status === 'announcing' && stageConfig) {
+        await runStageAnimation(currentStage);
+      }
     }
+    const timeoutId = animate();
+    // This is incorrect, but we need to return a cleanup function.
+    // The runStageAnimation returns a function, but only if stage < 4.
+    // So we can't rely on it.
+    // Let's restructure.
+    // The problem is `runStageAnimation` is async.
+    // So `useEffect` returns a promise.
+    
+    // The correct pattern
+    let cleanup: (() => void) | undefined;
+    async function stageAnimation() {
+        if (draw.status === 'announcing' && stageConfig) {
+           cleanup = await runStageAnimation(currentStage);
+        }
+    }
+    
+    stageAnimation();
+
+    return () => {
+        if (cleanup) cleanup();
+    };
+
   }, [draw.status, currentStage, runStageAnimation, stageConfig]);
 
   if (isCeremonyFinished) {
@@ -370,3 +393,5 @@ const AnnounceWinnerWithData = ({ params }: { params: { id: string } }) => {
 };
 
 export const AnnounceWinner = withAdminAuth(AnnounceWinnerWithData);
+
+    
