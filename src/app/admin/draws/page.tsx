@@ -15,14 +15,24 @@ import {
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
 import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from "@/components/ui/dialog";
+import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { useToast } from "@/hooks/use-toast";
-import { PlusCircle, Loader2, MoreHorizontal, Edit, Trash2, Trophy } from "lucide-react";
+import { PlusCircle, Loader2, MoreHorizontal, Edit, Trash2, Trophy, TestTube2 } from "lucide-react";
 import { getDraws, deleteDraw } from "./actions";
+import { createMockData } from "./[id]/announce/actions";
 import type { Draw } from "@/lib/types";
 import {
   Table,
@@ -36,23 +46,78 @@ import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import withAdminAuth from '@/components/withAdminAuth';
 import { DrawForm } from "@/components/DrawForm";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+
 
 const getDrawStatus = (draw: Draw): { text: string; variant: "default" | "secondary" | "outline"; className?: string } => {
   const now = new Date();
   const startDate = new Date(draw.startDate);
   const endDate = new Date(draw.endDate);
 
-  if (now < startDate) {
+  if (draw.status === 'finished') {
+    return { text: "Completed", variant: "secondary" };
+  } else if (now < startDate) {
     return { text: "Upcoming", variant: "outline", className: "border-blue-500/50 text-blue-600" };
   } else if (now >= startDate && now <= endDate) {
     return { text: "Active", variant: "default", className: "bg-green-500/20 text-green-700" };
   } else {
-    return { text: "Finished", variant: "secondary" };
+    return { text: "Awaiting Winner", variant: "outline", className: "border-yellow-500/50 text-yellow-600" };
   }
 }
 
+function MockDataDialog({ drawId, onOpenChange, onSuccess }: { drawId: string, onOpenChange: (open:boolean) => void, onSuccess: () => void }) {
+    const [isLoading, setIsLoading] = useState(false);
+    const [count, setCount] = useState(50);
+    const { toast } = useToast();
+
+    const handleGenerate = async () => {
+        setIsLoading(true);
+        const result = await createMockData(drawId, count);
+        if (result.success) {
+            toast({ title: "Success!", description: result.message });
+            onSuccess();
+            onOpenChange(false);
+        } else {
+            toast({ title: "Error", description: result.message, variant: "destructive" });
+        }
+        setIsLoading(false);
+    }
+
+    return (
+        <DialogContent>
+            <DialogHeader>
+                <DialogTitle>Generate Mock Data for Draw</DialogTitle>
+                <DialogDescription>
+                    This will create mock users and tickets for this draw. This is for testing purposes only.
+                </DialogDescription>
+            </DialogHeader>
+            <div className="py-4">
+                <Label htmlFor="ticket-count">Number of Tickets to Generate</Label>
+                <Input 
+                    id="ticket-count" 
+                    type="number" 
+                    value={count} 
+                    onChange={(e) => setCount(Number(e.target.value))} 
+                    max={100}
+                    min={1}
+                />
+            </div>
+            <DialogFooter>
+                <Button variant="outline" onClick={() => onOpenChange(false)} disabled={isLoading}>Cancel</Button>
+                <Button onClick={handleGenerate} disabled={isLoading}>
+                    {isLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                    Generate
+                </Button>
+            </DialogFooter>
+        </DialogContent>
+    );
+}
+
+
 function DrawsAdminPage() {
   const [isFormOpen, setIsFormOpen] = useState(false);
+  const [isMocking, setIsMocking] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
   const [draws, setDraws] = useState<Draw[]>([]);
@@ -84,6 +149,11 @@ function DrawsAdminPage() {
   const handleCreateClick = () => {
     setSelectedDraw(null);
     setIsFormOpen(true);
+  }
+  
+  const handleMockClick = (draw: Draw) => {
+    setSelectedDraw(draw);
+    setIsMocking(true);
   }
 
   const handleDelete = async (drawId: string) => {
@@ -117,12 +187,15 @@ function DrawsAdminPage() {
             Create New Draw
         </Button>
         <DrawForm
-            key={selectedDraw?.id || 'new'}
+            key={selectedDraw?.id || 'new-draw'}
             open={isFormOpen}
             onOpenChange={setIsFormOpen}
             onSuccess={handleFormSuccess}
             draw={selectedDraw}
         />
+        <Dialog open={isMocking} onOpenChange={setIsMocking}>
+           {selectedDraw && <MockDataDialog drawId={selectedDraw.id} onOpenChange={setIsMocking} onSuccess={fetchDraws} />}
+        </Dialog>
       </div>
 
       <Card>
@@ -146,10 +219,9 @@ function DrawsAdminPage() {
                 {isLoading && <TableRow><TableCell colSpan={6} className="text-center"><Loader2 className="mx-auto h-8 w-8 animate-spin"/></TableCell></TableRow>}
                 {!isLoading && draws.map((draw) => {
                     const status = getDrawStatus(draw);
-                    const isEditable = new Date(draw.endDate) > new Date();
-                    const isFinished = status.text === "Finished";
-                    const canAnnounce = isFinished && !draw.winningTicketId;
-
+                    const isEditable = new Date(draw.endDate) > new Date() && !draw.status;
+                    const canAnnounce = status.text === "Awaiting Winner";
+                    
                     return (
                     <TableRow key={draw.id}>
                         <TableCell className="font-medium">{draw.name}</TableCell>
@@ -184,8 +256,12 @@ function DrawsAdminPage() {
                                     <Edit className="mr-2 h-4 w-4" />
                                     Edit
                                   </DropdownMenuItem>
+                                  <DropdownMenuItem onClick={() => handleMockClick(draw)}>
+                                    <TestTube2 className="mr-2 h-4 w-4" />
+                                    Generate Mock Data
+                                  </DropdownMenuItem>
                                   <AlertDialogTrigger asChild>
-                                    <DropdownMenuItem className="text-destructive focus:text-destructive" disabled={isFinished}>
+                                    <DropdownMenuItem className="text-destructive focus:text-destructive" disabled={!!draw.status}>
                                       <Trash2 className="mr-2 h-4 w-4" />
                                       Delete
                                     </DropdownMenuItem>

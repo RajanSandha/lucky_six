@@ -5,7 +5,7 @@ import { useState, useMemo, useEffect, useCallback } from 'react';
 import type { Draw, Ticket, User } from '@/lib/types';
 import { Button } from './ui/button';
 import { TicketCard } from './TicketCard';
-import { setWinner } from '@/app/admin/draws/[id]/announce/actions';
+import { setWinner, selectRoundWinners } from '@/app/admin/draws/[id]/announce/actions';
 import { useToast } from '@/hooks/use-toast';
 import { Loader2, Crown, PartyPopper, CheckCircle } from 'lucide-react';
 import { useWindowSize } from 'react-use';
@@ -24,24 +24,15 @@ const STAGES = {
 };
 
 const STAGE_CONFIG = {
-  [STAGES.IDLE]: { title: 'Starting the Draw...', subTitle: 'Get ready for the first round!', nextStage: STAGES.QUALIFIER, buttonText: 'Start First Round' },
+  [STAGES.IDLE]: { title: 'Starting the Draw...', subTitle: 'Get ready for the first round!', nextStage: STAGES.QUALIFIER, buttonText: 'Start First Round', count: 0 },
   [STAGES.QUALIFIER]: { title: 'First Round Selection', subTitle: 'Finding our top 20 qualifiers...', nextCount: 20, nextStage: STAGES.QUARTER_FINAL, duration: 500, animationDelay: 1000, buttonText: 'Start Quarter-Final' },
   [STAGES.QUARTER_FINAL]: { title: 'Quarter-Final', subTitle: 'Selecting 10 tickets to advance...', nextCount: 10, nextStage: STAGES.SEMI_FINAL, duration: 400, animationDelay: 500, buttonText: 'Start Semi-Final' },
   [STAGES.SEMI_FINAL]: { title: 'Semi-Final', subTitle: 'Finding our 3 finalists...', nextCount: 3, nextStage: STAGES.FINAL, duration: 800, animationDelay: 1000, buttonText: 'Start Final Round' },
   [STAGES.FINAL]: { title: 'The Final Round!', subTitle: 'And the winner is...', nextCount: 1, nextStage: STAGES.WINNER, duration: 1500, animationDelay: 5000, buttonText: 'Reveal Winner' },
-  [STAGES.WINNER]: { title: 'We Have a Winner!', buttonText: 'Finish' },
+  [STAGES.WINNER]: { title: 'We Have a Winner!', buttonText: 'Finish', count: 1 },
 };
 
 type FullTicket = Ticket & { user: User | null };
-
-// Fisher-Yates shuffle algorithm
-const shuffleArray = (array: any[]) => {
-  for (let i = array.length - 1; i > 0; i--) {
-    const j = Math.floor(Math.random() * (i + 1));
-    [array[i], array[j]] = [array[j], array[i]];
-  }
-  return array;
-};
 
 function AnnounceWinnerComponent({ draw, allTickets }: { draw: Draw; allTickets: FullTicket[] }) {
   const [stage, setStage] = useState(STAGES.IDLE);
@@ -50,7 +41,7 @@ function AnnounceWinnerComponent({ draw, allTickets }: { draw: Draw; allTickets:
   const [currentPool, setCurrentPool] = useState<FullTicket[]>(allTickets);
   const [selectedForRound, setSelectedForRound] = useState<FullTicket[]>([]);
   const [highlightedTicket, setHighlightedTicket] = useState<string | null>(null);
-  const [countdown, setCountdown] = useState(10);
+  const [countdown, setCountdown] = useState(5);
   
   const { toast } = useToast();
   const { width, height } = useWindowSize();
@@ -60,9 +51,8 @@ function AnnounceWinnerComponent({ draw, allTickets }: { draw: Draw; allTickets:
   const [revealedIndices, setRevealedIndices] = useState<number[]>([]);
 
   const currentStageConfig = STAGE_CONFIG[stage as keyof typeof STAGE_CONFIG];
-  const winner = useMemo(() => stage === STAGES.WINNER ? currentPool[0] : null, [stage, currentPool]);
+  const winner = useMemo(() => stage === STAGES.WINNER ? selectedForRound[0] : null, [stage, selectedForRound]);
 
-  // This is the core animation for a single ticket
   const runSlotMachine = useCallback((ticket: FullTicket) => {
     return new Promise<void>(resolve => {
         setIsRolling(true);
@@ -78,14 +68,13 @@ function AnnounceWinnerComponent({ draw, allTickets }: { draw: Draw; allTickets:
                       setSelectedForRound(prev => [...prev, ticket]);
                       setHighlightedTicket(null);
                       resolve();
-                    }, 500);
-                }, 500);
+                    }, 500); // Wait half a second on the highlighted ticket
+                }, 500); // Wait half a second after last number
                 return;
             }
             
             setRevealedIndices(prev => [...prev, index]);
-            
-            setTimeout(() => revealNumber(index + 1), 500);
+            setTimeout(() => revealNumber(index + 1), 300); // Reveal one number every 300ms
         };
 
         setTimeout(() => revealNumber(0), 100);
@@ -93,51 +82,55 @@ function AnnounceWinnerComponent({ draw, allTickets }: { draw: Draw; allTickets:
   }, []);
 
   const runStage = useCallback(async () => {
-    if (isProcessing || !currentStageConfig.nextCount || stage === STAGES.WINNER || intermission) return;
+    if (isProcessing || stage === STAGES.IDLE || stage === STAGES.WINNER) return;
 
     setIsProcessing(true);
     
-    const shuffled = shuffleArray([...currentPool]);
-    const ticketsToSelect = shuffled.slice(0, currentStageConfig.nextCount);
-    
-    for (const ticket of ticketsToSelect) {
-      await runSlotMachine(ticket);
-    }
-    
-    setCurrentPool(ticketsToSelect);
-    setIsProcessing(false);
-    
-    if (currentStageConfig.nextStage !== STAGES.WINNER) {
+    try {
+        const roundWinners = await selectRoundWinners(draw.id, Object.keys(STAGE_CONFIG).indexOf(stage), currentPool, currentStageConfig.nextCount);
+        const ticketsToSelect = roundWinners.map(winner => allTickets.find(t => t.id === winner.id)).filter(Boolean) as FullTicket[];
+
+        for (const ticket of ticketsToSelect) {
+            await runSlotMachine(ticket);
+            await new Promise(res => setTimeout(res, 200)); // Short delay between selections
+        }
+
+        setCurrentPool(ticketsToSelect);
         setIntermission(true);
-    } else {
-        // If the next stage is winner, go straight to it
-        setStage(STAGES.WINNER);
+
+    } catch(error: any) {
+        toast({ title: 'Error processing round', description: error.message, variant: 'destructive'});
+    } finally {
+        setIsProcessing(false);
     }
-  }, [stage, isProcessing, currentPool, runSlotMachine, currentStageConfig, intermission]);
-  
-  const handleStartFirstRound = () => {
-    if (stage === STAGES.IDLE) {
-      setStage(STAGES.QUALIFIER);
+
+  }, [stage, isProcessing, currentPool, runSlotMachine, currentStageConfig, draw.id, allTickets, toast]);
+
+  const handleNextStageClick = () => {
+    if (isProcessing || stage === STAGES.WINNER || intermission) return;
+    const nextStageKey = currentStageConfig.nextStage as string;
+    if (nextStageKey) {
+        setStage(nextStageKey);
     }
   }
 
   useEffect(() => {
-    if (stage === STAGES.QUALIFIER && !isProcessing && selectedForRound.length === 0) {
-      runStage();
-    }
-  }, [stage, isProcessing, selectedForRound.length, runStage]);
-
-  useEffect(() => {
+    // This effect now only handles the countdown logic
     if (!intermission) return;
 
-    setCountdown(10); // Reset countdown
+    setCountdown(5); // Reset countdown
     const timer = setInterval(() => {
       setCountdown(prev => {
         if (prev <= 1) {
           clearInterval(timer);
           setIntermission(false);
-          setSelectedForRound([]); // Clear for next round
-          setStage(currentStageConfig.nextStage as string);
+          setSelectedForRound([]);
+          if(currentStageConfig.nextStage === STAGES.WINNER) {
+            setStage(STAGES.WINNER);
+            setSelectedForRound(currentPool); // The final pool is the winner(s)
+          } else {
+             handleNextStageClick();
+          }
           return 0;
         }
         return prev - 1;
@@ -145,20 +138,16 @@ function AnnounceWinnerComponent({ draw, allTickets }: { draw: Draw; allTickets:
     }, 1000);
 
     return () => clearInterval(timer);
-  }, [intermission, currentStageConfig.nextStage]);
+  }, [intermission, currentStageConfig, currentPool]);
 
 
-  const handleNextStageClick = () => {
-    if (isProcessing || stage === STAGES.WINNER || intermission) return;
-    
-    const nextStageKey = currentStageConfig.nextStage;
-    if (nextStageKey) {
-        setSelectedForRound([]);
-        setStage(nextStageKey);
-        setTimeout(() => runStage(), 100);
+  useEffect(() => {
+    if (stage !== STAGES.IDLE && stage !== STAGES.WINNER && !isProcessing && !intermission) {
+      runStage();
     }
-  }
-  
+  }, [stage]);
+
+
   const handleFinish = async () => {
      if (winner) {
           const result = await setWinner(draw.id, winner.id, winner.userId as string);
@@ -169,7 +158,7 @@ function AnnounceWinnerComponent({ draw, allTickets }: { draw: Draw; allTickets:
           }
       }
   }
-
+  
   if (winner) {
     return (
       <div className="relative min-h-screen flex flex-col items-center justify-center bg-background text-center p-4 overflow-hidden">
@@ -204,7 +193,7 @@ function AnnounceWinnerComponent({ draw, allTickets }: { draw: Draw; allTickets:
             {isProcessing ? (currentStageConfig.subTitle || `Draw: ${draw.name} | Total Tickets: ${allTickets.length}`) : `Draw: ${draw.name}`}
         </p>
          {stage === STAGES.IDLE && (
-             <Button onClick={handleStartFirstRound} disabled={isProcessing} className="mt-4">
+             <Button onClick={handleNextStageClick} disabled={isProcessing} className="mt-4">
                 {isProcessing && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
                 {currentStageConfig.buttonText}
             </Button>
@@ -248,7 +237,7 @@ function AnnounceWinnerComponent({ draw, allTickets }: { draw: Draw; allTickets:
 
           <Card className="lg:col-span-2 bg-blue-500/5 border-blue-500/20">
               <CardHeader>
-                  <CardTitle className="font-headline text-blue-600">Selected Tickets ({selectedForRound.length} / {currentStageConfig.nextCount || allTickets.length})</CardTitle>
+                  <CardTitle className="font-headline text-blue-600">Selected This Round ({selectedForRound.length} / {currentStageConfig.nextCount || 0})</CardTitle>
                   <CardDescription>These tickets have advanced from the current stage.</CardDescription>
               </CardHeader>
               <CardContent className="grid grid-cols-2 md:grid-cols-4 gap-2">
@@ -258,16 +247,7 @@ function AnnounceWinnerComponent({ draw, allTickets }: { draw: Draw; allTickets:
               </CardContent>
           </Card>
       </div>
-
-       <div className="text-center mt-6">
-            {!isProcessing && !intermission && stage !== STAGES.IDLE && stage !== STAGES.QUALIFIER && (
-                <Button onClick={handleNextStageClick} disabled={isProcessing}>
-                    {isProcessing && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                    {currentStageConfig.buttonText}
-                </Button>
-            )}
-       </div>
-      
+       
        <Card className="mt-6">
             <CardHeader>
                 <CardTitle>Ticket Pool ({currentPool.length})</CardTitle>
@@ -275,7 +255,7 @@ function AnnounceWinnerComponent({ draw, allTickets }: { draw: Draw; allTickets:
             </CardHeader>
             <CardContent className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-6 lg:grid-cols-8 gap-2">
                 {allTickets.map(ticket => {
-                    const isActuallySelected = selectedForRound.some(t => t.id === ticket.id);
+                    const isSelectedInRound = selectedForRound.some(t => t.id === ticket.id);
                     const isInCurrentPool = currentPool.some(p => p.id === ticket.id);
                     const isEliminated = !isInCurrentPool && stage !== STAGES.IDLE;
                     
@@ -283,9 +263,9 @@ function AnnounceWinnerComponent({ draw, allTickets }: { draw: Draw; allTickets:
                         <TicketCard
                             key={ticket.id}
                             ticket={ticket}
-                            isEliminated={isEliminated && !isActuallySelected}
+                            isEliminated={isEliminated && !isSelectedInRound}
                             isHighlighted={highlightedTicket === ticket.id}
-                            isSelected={isActuallySelected}
+                            isSelected={isSelectedInRound}
                         />
                     );
                 })}
@@ -295,9 +275,4 @@ function AnnounceWinnerComponent({ draw, allTickets }: { draw: Draw; allTickets:
   );
 }
 
-
 export const AnnounceWinner = withAdminAuth(AnnounceWinnerComponent);
-
-    
-
-    
