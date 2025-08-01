@@ -6,10 +6,11 @@ import { Button } from './ui/button';
 import { TicketCard } from './TicketCard';
 import { setWinner } from '@/app/admin/draws/[id]/announce/actions';
 import { useToast } from '@/hooks/use-toast';
-import { Loader2, Crown, PartyPopper, Ticket as TicketIcon } from 'lucide-react';
+import { Loader2, Crown, PartyPopper } from 'lucide-react';
 import { useWindowSize } from 'react-use';
 import Confetti from 'react-confetti';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from './ui/card';
+import withAdminAuth from './withAdminAuth';
 
 const STAGES = {
   IDLE: 'idle',
@@ -42,7 +43,7 @@ const shuffleArray = (array: any[]) => {
   return array;
 };
 
-export function AnnounceWinner({ draw, allTickets }: { draw: Draw; allTickets: FullTicket[] }) {
+function AnnounceWinnerComponent({ draw, allTickets }: { draw: Draw; allTickets: FullTicket[] }) {
   const [stage, setStage] = useState(STAGES.IDLE);
   const [isProcessing, setIsProcessing] = useState(true);
   const [currentPool, setCurrentPool] = useState<FullTicket[]>(allTickets);
@@ -86,7 +87,7 @@ export function AnnounceWinner({ draw, allTickets }: { draw: Draw; allTickets: F
         setStage(STAGES.QUALIFIER);
         runStage(STAGES.QUALIFIER, allTickets);
     }, 2000); // 2-second delay before starting
-  }, []);
+  }, [allTickets]);
 
   const handleNextStageClick = () => {
     if (!isProcessing && stage !== STAGES.WINNER) {
@@ -196,3 +197,6 @@ export function AnnounceWinner({ draw, allTickets }: { draw: Draw; allTickets: F
     </div>
   );
 }
+
+
+export const AnnounceWinner = withAdminAuth(AnnounceWinnerComponent);
