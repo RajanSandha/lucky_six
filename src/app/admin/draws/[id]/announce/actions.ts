@@ -15,7 +15,7 @@ const shuffleArray = (array: any[]) => {
 };
 
 
-export async function getTicketsForDraw(drawId: string, currentUserId?: string | null): Promise<(Ticket & { user: User | null })[]> {
+export async function getTicketsForDraw(drawId: string): Promise<(Ticket & { user: User | null })[]> {
     const ticketsRef = collection(db, 'tickets');
     const q = query(ticketsRef, where('drawId', '==', drawId));
     const ticketSnapshot = await getDocs(q);
@@ -39,54 +39,49 @@ export async function getTicketsForDraw(drawId: string, currentUserId?: string |
             };
         })
     );
-
-    // Sort to show current user's tickets first
-    if (currentUserId) {
-        ticketsWithUsers.sort((a, b) => {
-            if (a.userId === currentUserId && b.userId !== currentUserId) return -1;
-            if (a.userId !== currentUserId && b.userId === currentUserId) return 1;
-            return 0;
-        });
-    }
-
+    
     return ticketsWithUsers;
 }
 
-export async function selectRoundWinners(drawId: string, round: number, ticketPool: {id: string}[], count: number): Promise<{id: string}[]> {
-    try {
-        const shuffled = shuffleArray([...ticketPool]);
-        const winners = shuffled.slice(0, count);
-        
-        const drawRef = doc(db, 'draws', drawId);
-        
-        await updateDoc(drawRef, {
-            [`round_${round}_winners`]: winners.map(w => w.id),
-        });
+// This function is no longer called from the client, but is used by the scheduler flow.
+export async function selectRoundWinners(drawId: string, ticketPool: {id: string}[]) {
+    const shuffledPool = shuffleArray([...ticketPool]);
+    
+    const round1Winners = shuffledPool.slice(0, 20).map(t => t.id);
+    const round2Winners = shuffleArray([...round1Winners]).slice(0, 10);
+    const round3Winners = shuffleArray([...round2Winners]).slice(0, 3);
+    const finalWinner = shuffleArray([...round3Winners]).slice(0, 1);
 
-        revalidatePath(`/admin/draws/${drawId}/announce`);
-        
-        return winners;
+    const winningTicketId = finalWinner[0];
+    const winningTicketSnap = await getDoc(doc(db, 'tickets', winningTicketId));
+    const winnerId = winningTicketSnap.data()?.userId;
 
-    } catch (error: any) {
-        console.error("Error selecting round winners:", error);
-        throw new Error(`Failed to select winners for round ${round}: ${error.message}`);
-    }
+    const drawRef = doc(db, 'draws', drawId);
+    await updateDoc(drawRef, {
+        roundWinners: {
+            1: round1Winners,
+            2: round2Winners,
+            3: round3Winners,
+            4: finalWinner,
+        },
+        winningTicketId: winningTicketId,
+        winnerId: winnerId,
+        status: 'announcing',
+    });
 }
 
 
-export async function setWinner(drawId: string, ticketId: string, userId: string) {
+export async function setWinnerAsFinished(drawId: string) {
     try {
         const drawRef = doc(db, 'draws', drawId);
         await updateDoc(drawRef, {
-            winningTicketId: ticketId,
-            winnerId: userId,
             status: 'finished'
         });
         
         revalidatePath('/admin/draws');
         revalidatePath('/results');
 
-        return { success: true, message: 'Winner has been set!' };
+        return { success: true, message: 'Draw has been marked as finished!' };
     } catch (error: any) {
         console.error("Error setting winner:", error);
         return { success: false, message: `Failed to set winner: ${error.message}` };

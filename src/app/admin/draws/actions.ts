@@ -34,9 +34,10 @@ export async function createDraw(formData: FormData) {
     const ticketPrice = formData.get('ticketPrice') as string;
     const startDate = formData.get('startDate') as string;
     const endDate = formData.get('endDate') as string;
+    const announcementDate = formData.get('announcementDate') as string;
     const imageFile = formData.get('image') as File | null;
     
-    if (!name || !description || !prize || !ticketPrice || !startDate || !endDate) {
+    if (!name || !description || !prize || !ticketPrice || !startDate || !endDate || !announcementDate) {
       return { success: false, message: 'Please fill out all required fields.' };
     }
 
@@ -53,8 +54,10 @@ export async function createDraw(formData: FormData) {
       ticketPrice: Number(ticketPrice),
       startDate: new Date(startDate),
       endDate: new Date(endDate),
+      announcementDate: new Date(announcementDate),
       imageUrl: imageUrl,
       createdAt: serverTimestamp(),
+      status: 'upcoming'
     };
 
     await addDoc(collection(db, "draws"), newDrawData);
@@ -85,9 +88,10 @@ export async function updateDraw(drawId: string, formData: FormData) {
         const ticketPrice = formData.get('ticketPrice') as string;
         const startDate = formData.get('startDate') as string;
         const endDate = formData.get('endDate') as string;
+        const announcementDate = formData.get('announcementDate') as string;
         const imageFile = formData.get('image') as File | null;
 
-        if (!name || !description || !prize || !ticketPrice || !startDate || !endDate) {
+        if (!name || !description || !prize || !ticketPrice || !startDate || !endDate || !announcementDate) {
             return { success: false, message: 'Please fill out all required fields.' };
         }
 
@@ -98,6 +102,7 @@ export async function updateDraw(drawId: string, formData: FormData) {
             ticketPrice: Number(ticketPrice),
             startDate: new Date(startDate),
             endDate: new Date(endDate),
+            announcementDate: new Date(announcementDate),
         };
 
         if (imageFile && imageFile.size > 0) {
@@ -179,6 +184,7 @@ export async function getDraws(): Promise<Draw[]> {
             ...data,
             startDate: data.startDate.toDate(),
             endDate: data.endDate.toDate(),
+            announcementDate: data.announcementDate.toDate(),
             createdAt: data.createdAt?.toDate()
         } as Draw;
     });
@@ -196,6 +202,7 @@ export async function getDraw(id: string): Promise<Draw | null> {
             ...data,
             startDate: data.startDate.toDate(),
             endDate: data.endDate.toDate(),
+            announcementDate: data.announcementDate.toDate(),
             createdAt: data.createdAt?.toDate()
         } as Draw;
     }

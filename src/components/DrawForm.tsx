@@ -118,6 +118,10 @@ export function DrawForm({ open, onOpenChange, onSuccess, draw }: DrawFormProps)
                 <Input id="endDate" name="endDate" type="datetime-local" defaultValue={draw ? formatDateTimeLocal(new Date(draw.endDate)) : ''} required />
               </div>
             </div>
+             <div className="space-y-2">
+                <Label htmlFor="announcementDate">Announcement Date</Label>
+                <Input id="announcementDate" name="announcementDate" type="datetime-local" defaultValue={draw ? formatDateTimeLocal(new Date(draw.announcementDate)) : ''} required />
+              </div>
           </div>
           <DialogFooter>
             <DialogClose asChild>

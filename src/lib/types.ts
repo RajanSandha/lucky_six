@@ -24,9 +24,11 @@ export type Draw = {
   ticketPrice: number;
   startDate: Date;
   endDate: Date;
+  announcementDate: Date; // New field for scheduling
   winningTicketId?: string;
   winnerId?: string;
   imageUrl?: string;
-  status?: 'finished';
-  [key: string]: any; // To allow for dynamic round winner fields
+  status?: 'upcoming' | 'active' | 'awaiting_announcement' | 'announcing' | 'finished';
+  roundWinners?: Record<number, string[]>; // New field to store pre-selected winners
+  [key: string]: any;
 };

@@ -29,7 +29,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { useToast } from "@/hooks/use-toast";
-import { PlusCircle, Loader2, MoreHorizontal, Edit, Trash2, Trophy, TestTube2 } from "lucide-react";
+import { PlusCircle, Loader2, MoreHorizontal, Edit, Trash2, Trophy, TestTube2, Megaphone } from "lucide-react";
 import { getDraws, deleteDraw } from "./actions";
 import { createMockData } from "./[id]/announce/actions";
 import type { Draw } from "@/lib/types";
@@ -53,15 +53,20 @@ const getDrawStatus = (draw: Draw): { text: string; variant: "default" | "second
   const now = new Date();
   const startDate = new Date(draw.startDate);
   const endDate = new Date(draw.endDate);
+  const announcementDate = new Date(draw.announcementDate);
 
   if (draw.status === 'finished') {
     return { text: "Completed", variant: "secondary" };
+  } else if (draw.status === 'announcing') {
+     return { text: "Announcing", variant: "default", className: "bg-purple-500/20 text-purple-700 animate-pulse" };
   } else if (now < startDate) {
     return { text: "Upcoming", variant: "outline", className: "border-blue-500/50 text-blue-600" };
   } else if (now >= startDate && now <= endDate) {
     return { text: "Active", variant: "default", className: "bg-green-500/20 text-green-700" };
+  } else if (now > endDate && now < announcementDate) {
+    return { text: "Awaiting Ann.", variant: "outline", className: "border-yellow-500/50 text-yellow-600" };
   } else {
-    return { text: "Awaiting Winner", variant: "outline", className: "border-yellow-500/50 text-yellow-600" };
+     return { text: "Awaiting Winner", variant: "outline", className: "border-yellow-500/50 text-yellow-600" };
   }
 }
 
@@ -208,8 +213,8 @@ function DrawsAdminPage() {
                 <TableRow>
                     <TableHead>Name</TableHead>
                     <TableHead>Prize (₹)</TableHead>
-                    <TableHead>Start Date</TableHead>
                     <TableHead>End Date</TableHead>
+                    <TableHead>Announcement Date</TableHead>
                     <TableHead>Status</TableHead>
                     <TableHead className="text-right">Actions</TableHead>
                 </TableRow>
@@ -219,15 +224,15 @@ function DrawsAdminPage() {
                 {!isLoading && draws.map((draw) => {
                     const status = getDrawStatus(draw);
                     const isEditable = new Date(draw.startDate) > new Date() && !draw.status;
-                    const canAnnounce = status.text === "Awaiting Winner";
+                    const canAnnounce = status.text === "Awaiting Ann." || status.text === "Announcing";
                     const canBeDeleted = !draw.status; // Simplified: can only delete draws that haven't started/finished
 
                     return (
                     <TableRow key={draw.id}>
                         <TableCell className="font-medium">{draw.name}</TableCell>
                         <TableCell>{draw.prize.toLocaleString('en-IN')}</TableCell>
-                        <TableCell>{new Date(draw.startDate).toLocaleDateString()}</TableCell>
                         <TableCell>{new Date(draw.endDate).toLocaleDateString()}</TableCell>
+                        <TableCell>{new Date(draw.announcementDate).toLocaleString()}</TableCell>
                         <TableCell>
                         <Badge variant={status.variant} className={status.className}>
                             {status.text}
@@ -238,8 +243,8 @@ function DrawsAdminPage() {
                              {canAnnounce && (
                                 <Button asChild size="sm" className="bg-accent text-accent-foreground hover:bg-accent/90">
                                   <Link href={`/admin/draws/${draw.id}/announce`}>
-                                      <Trophy className="mr-2 h-4 w-4" />
-                                      Announce
+                                      <Megaphone className="mr-2 h-4 w-4" />
+                                      View Ceremony
                                   </Link>
                                 </Button>
                               )}
@@ -274,7 +279,7 @@ function DrawsAdminPage() {
                                     <AlertDialogDescription>
                                       This action cannot be undone. This will permanently delete the draw
                                       "{draw.name}". You can only delete draws with no purchased tickets.
-                                    </AlertDialogDescription>
+                                    </Дescription>
                                   </AlertDialogHeader>
                                   <AlertDialogFooter>
                                     <AlertDialogCancel disabled={isDeleting}>Cancel</AlertDialogCancel>

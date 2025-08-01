@@ -1,4 +1,5 @@
 
+
 import { getDraw } from '@/app/admin/draws/actions';
 import { notFound } from 'next/navigation';
 import { AnnounceWinner } from '@/components/AnnounceWinner';
@@ -17,12 +18,6 @@ export default async function AnnounceWinnerPage({ params }: { params: { id: str
         notFound();
     }
     
-    // This is a simplified way to get current user on server. 
-    // In a real app, you'd get this from the session. We'll use a cookie for this example.
-    const userCookie = cookies().get('lucky-six-user');
-    const currentUser = userCookie ? JSON.parse(userCookie.value) : null;
-    
-    const tickets = await getTicketsForDraw(id, currentUser?.id);
-
-    return <AnnounceWinner draw={draw} allTickets={tickets} />;
+    // The component now fetches its own data, so we can just render it directly
+    return <AnnounceWinner params={{ id }} />;
 }
