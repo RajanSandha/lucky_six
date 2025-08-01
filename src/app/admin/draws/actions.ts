@@ -7,6 +7,13 @@ import { collection, addDoc, serverTimestamp, getDocs, doc, updateDoc, getDoc, d
 import { ref, uploadBytes, getDownloadURL, deleteObject } from 'firebase/storage';
 import type { Draw } from '@/lib/types';
 
+// Helper function to create a UTC date from a local datetime string
+const createUtcDate = (dateString: string) => {
+    if (!dateString) return new Date(); // Fallback, though should be handled by form validation
+    // Append 'Z' to the string to tell the Date constructor that this time is in UTC
+    return new Date(dateString + ':00.000Z');
+}
+
 async function uploadImage(image: File): Promise<string> {
     const storageRef = ref(storage, `draws/${Date.now()}-${image.name}`);
     await uploadBytes(storageRef, image);
@@ -42,10 +49,10 @@ export async function createDraw(formData: FormData) {
       return { success: false, message: 'Please fill out all required fields.' };
     }
     
-    const endDateObj = new Date(endDate);
+    const endDateObj = createUtcDate(endDate);
     if (!announcementDate) {
         // Default announcement date to 2 hours after end date
-        announcementDate = new Date(endDateObj.getTime() + 2 * 60 * 60 * 1000).toISOString();
+        announcementDate = new Date(endDateObj.getTime() + 2 * 60 * 60 * 1000).toISOString().slice(0, 16);
     }
 
 
@@ -60,9 +67,9 @@ export async function createDraw(formData: FormData) {
       description,
       prize: Number(prize),
       ticketPrice: Number(ticketPrice),
-      startDate: new Date(startDate),
+      startDate: createUtcDate(startDate),
       endDate: endDateObj,
-      announcementDate: new Date(announcementDate),
+      announcementDate: createUtcDate(announcementDate),
       imageUrl: imageUrl,
       createdAt: serverTimestamp(),
       status: 'upcoming'
@@ -90,11 +97,6 @@ export async function updateDraw(drawId: string, formData: FormData) {
             return { success: false, message: 'Draw not found.' };
         }
 
-        const oldData = drawSnap.data();
-        const oldEndDate = oldData.endDate.toDate();
-        const oldAnnouncementDate = oldData.announcementDate ? oldData.announcementDate.toDate() : new Date(oldEndDate.getTime() + 2 * 60 * 60 * 1000);
-
-
         const name = formData.get('name') as string;
         const description = formData.get('description') as string;
         const prize = formData.get('prize') as string;
@@ -108,17 +110,14 @@ export async function updateDraw(drawId: string, formData: FormData) {
             return { success: false, message: 'Please fill out all required fields.' };
         }
 
-        const newEndDate = new Date(endDate);
-        const announcementDuration = oldAnnouncementDate.getTime() - oldEndDate.getTime();
-
-        const updatedData: Partial<Draw> = {
+        const updatedData: Partial<Draw> & { [key: string]: any } = {
             name,
             description,
             prize: Number(prize),
             ticketPrice: Number(ticketPrice),
-            startDate: new Date(startDate),
-            endDate: newEndDate,
-            announcementDate: new Date(newEndDate.getTime() + announcementDuration),
+            startDate: createUtcDate(startDate),
+            endDate: createUtcDate(endDate),
+            announcementDate: createUtcDate(announcementDate),
         };
 
         if (imageFile && imageFile.size > 0) {
