@@ -1,3 +1,4 @@
+
 'use server';
 
 /**
@@ -6,7 +7,7 @@
  */
 
 import { ai } from '@/ai/genkit';
-import { z } from 'genkit';
+import { z } from 'zod';
 import { db } from '@/lib/firebase';
 import { collection, query, where, getDocs, Timestamp, doc, getDoc } from 'firebase/firestore';
 import { selectRoundWinners } from '@/app/admin/draws/[id]/announce/actions';
@@ -33,25 +34,30 @@ export const scheduleWinnerSelection = ai.defineFlow(
     console.log(`Running winner selection scheduler at: ${currentTime}`);
     
     const drawsRef = collection(db, 'draws');
-    // Find draws that are scheduled to be announced but haven't been processed yet.
-    // status == 'awaiting_announcement' is a custom status we can set when a draw ends.
-    // For this implementation, we'll check for draws whose announcement time has passed and are not yet 'announcing' or 'finished'.
+    // Find draws that are scheduled to be announced.
+    // We will filter by status in the code to avoid a composite index.
     const q = query(
         drawsRef, 
-        where('announcementDate', '<=', Timestamp.fromDate(new Date(currentTime))),
-        where('status', 'in', ['upcoming', 'active', 'awaiting_announcement'])
+        where('announcementDate', '<=', Timestamp.fromDate(new Date(currentTime)))
     );
     
     const drawsToProcessSnapshot = await getDocs(q);
     
-    if (drawsToProcessSnapshot.empty) {
+    // Filter for the correct status in the code.
+    const validDraws = drawsToProcessSnapshot.docs.filter(doc => {
+        const status = doc.data().status;
+        return status === 'upcoming' || status === 'active' || status === 'awaiting_announcement';
+    });
+
+
+    if (validDraws.length === 0) {
         console.log("No draws to process at this time.");
         return { processedDraws: [] };
     }
 
     const processedDraws: string[] = [];
 
-    for (const drawDoc of drawsToProcessSnapshot.docs) {
+    for (const drawDoc of validDraws) {
         const drawId = drawDoc.id;
         console.log(`Processing draw: ${drawId}`);
         
