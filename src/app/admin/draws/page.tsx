@@ -90,6 +90,20 @@ function DrawsAdminPage() {
     setIsDeleting(false);
   }
 
+  const getDrawStatus = (draw: Draw): { text: string; variant: "default" | "secondary" | "outline"; className?: string } => {
+    const now = new Date();
+    const startDate = new Date(draw.startDate);
+    const endDate = new Date(draw.endDate);
+
+    if (now < startDate) {
+      return { text: "Upcoming", variant: "outline", className: "border-blue-500/50 text-blue-600" };
+    } else if (now >= startDate && now <= endDate) {
+      return { text: "Active", variant: "default", className: "bg-green-500/20 text-green-700" };
+    } else {
+      return { text: "Finished", variant: "secondary" };
+    }
+  }
+
   return (
     <div className="container mx-auto py-12 px-4">
       <div className="flex justify-between items-center mb-8">
@@ -121,7 +135,7 @@ function DrawsAdminPage() {
                 <TableRow>
                     <TableHead>Name</TableHead>
                     <TableHead>Prize (₹)</TableHead>
-                    <TableHead>Ticket Price (₹)</TableHead>
+                    <TableHead>Start Date</TableHead>
                     <TableHead>End Date</TableHead>
                     <TableHead>Status</TableHead>
                     <TableHead className="text-right">Actions</TableHead>
@@ -130,16 +144,18 @@ function DrawsAdminPage() {
                 <TableBody>
                 {isLoading && <TableRow><TableCell colSpan={6} className="text-center"><Loader2 className="mx-auto h-8 w-8 animate-spin"/></TableCell></TableRow>}
                 {!isLoading && draws.map((draw) => {
-                    const isActive = new Date(draw.endDate) > new Date();
+                    const status = getDrawStatus(draw);
+                    const isEditable = new Date(draw.endDate) > new Date();
+
                     return (
                     <TableRow key={draw.id}>
                         <TableCell className="font-medium">{draw.name}</TableCell>
                         <TableCell>{draw.prize.toLocaleString('en-IN')}</TableCell>
-                        <TableCell>{draw.ticketPrice}</TableCell>
+                        <TableCell>{new Date(draw.startDate).toLocaleDateString()}</TableCell>
                         <TableCell>{new Date(draw.endDate).toLocaleDateString()}</TableCell>
                         <TableCell>
-                        <Badge variant={isActive ? "default" : "secondary"} className={isActive ? "bg-green-500/20 text-green-700" : ""}>
-                            {isActive ? "Active" : "Finished"}
+                        <Badge variant={status.variant} className={status.className}>
+                            {status.text}
                         </Badge>
                         </TableCell>
                          <TableCell className="text-right">
@@ -152,7 +168,7 @@ function DrawsAdminPage() {
                                 </Button>
                               </DropdownMenuTrigger>
                               <DropdownMenuContent align="end">
-                                <DropdownMenuItem onClick={() => handleEditClick(draw)} disabled={!isActive}>
+                                <DropdownMenuItem onClick={() => handleEditClick(draw)} disabled={!isEditable}>
                                   <Edit className="mr-2 h-4 w-4" />
                                   Edit
                                 </DropdownMenuItem>
@@ -170,7 +186,7 @@ function DrawsAdminPage() {
                                   <AlertDialogDescription>
                                     This action cannot be undone. This will permanently delete the draw
                                     "{draw.name}". You can only delete draws with no purchased tickets.
-                                  </AlertDialogDescription>
+                                  </Description>
                                 </AlertDialogHeader>
                                 <AlertDialogFooter>
                                   <AlertDialogCancel disabled={isDeleting}>Cancel</AlertDialogCancel>

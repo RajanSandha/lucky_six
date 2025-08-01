@@ -10,13 +10,17 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Ticket, Search } from "lucide-react";
+import { Ticket, Search, Clock } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { getDraws } from "../admin/draws/actions";
+import { Countdown } from "@/components/Countdown";
 
 export default async function DrawsPage() {
   const allDraws = await getDraws();
-  const ongoingDraws = allDraws.filter(d => d.endDate > new Date());
+  const now = new Date();
+  
+  // Filter for draws that haven't ended yet
+  const visibleDraws = allDraws.filter(d => d.endDate > now);
 
   return (
     <div className="container mx-auto py-12 px-4">
@@ -25,19 +29,31 @@ export default async function DrawsPage() {
           Available Draws
         </h1>
         <p className="text-lg text-muted-foreground mt-2">
-          Here are the active draws. Pick one and get your ticket!
+          Here are the upcoming and active draws. Pick one and get your ticket!
         </p>
       </div>
-      {ongoingDraws.length > 0 ? (
+      {visibleDraws.length > 0 ? (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
-          {ongoingDraws.map((draw) => {
-            const timeRemaining = draw.endDate.getTime() - new Date().getTime();
+          {visibleDraws.map((draw) => {
+            const isUpcoming = new Date(draw.startDate) > now;
+            const timeRemaining = isUpcoming 
+              ? new Date(draw.startDate).getTime() - now.getTime()
+              : new Date(draw.endDate).getTime() - now.getTime();
             const daysRemaining = Math.ceil(timeRemaining / (1000 * 3600 * 24));
+
             return (
               <Card key={draw.id} className="flex flex-col shadow-lg hover:shadow-xl transition-shadow duration-300 overflow-hidden">
                 {draw.imageUrl && (
                   <div className="relative h-48 w-full">
                     <Image src={draw.imageUrl} alt={draw.name} layout="fill" objectFit="cover" data-ai-hint="lottery ticket" />
+                    {isUpcoming && (
+                      <div className="absolute inset-0 bg-black/50 flex items-center justify-center">
+                        <Badge variant="secondary" className="text-sm bg-background/80 text-foreground">
+                          <Clock className="mr-2 h-4 w-4" />
+                          Upcoming
+                        </Badge>
+                      </div>
+                    )}
                   </div>
                 )}
                 <CardHeader>
@@ -52,15 +68,15 @@ export default async function DrawsPage() {
                     </span>
                   </div>
                   <div className="flex justify-between items-center">
-                    <span className="text-sm font-semibold text-muted-foreground">Ends In</span>
+                    <span className="text-sm font-semibold text-muted-foreground">{isUpcoming ? 'Starts In' : 'Ends In'}</span>
                     <Badge variant="secondary">{daysRemaining} days</Badge>
                   </div>
                 </CardContent>
                 <CardFooter>
-                  <Button asChild className="w-full bg-accent text-accent-foreground hover:bg-accent/90 font-bold">
+                  <Button asChild className="w-full bg-accent text-accent-foreground hover:bg-accent/90 font-bold" disabled={isUpcoming}>
                     <Link href={`/draws/${draw.id}`}>
                       <Ticket className="mr-2 h-4 w-4" />
-                      Participate for ₹{draw.ticketPrice}
+                      {isUpcoming ? 'Get Notified (Coming Soon)' : `Participate for ₹${draw.ticketPrice}`}
                     </Link>
                   </Button>
                 </CardFooter>

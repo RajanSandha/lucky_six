@@ -6,7 +6,7 @@ import { useParams, notFound } from 'next/navigation';
 import Image from 'next/image';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Ticket, Dices, CreditCard, PartyPopper, ArrowLeft, Search, RefreshCw } from 'lucide-react';
+import { Ticket, Dices, CreditCard, PartyPopper, ArrowLeft, Search, RefreshCw, Clock } from 'lucide-react';
 import { TicketDisplay } from '@/components/TicketDisplay';
 import { useToast } from '@/hooks/use-toast';
 import Link from 'next/link';
@@ -16,6 +16,7 @@ import type { Draw, Ticket as TicketType } from '@/lib/types';
 import { Loader2 } from 'lucide-react';
 import { useAuth } from '@/context/AuthContext';
 import { purchaseTicket } from './actions';
+import { Countdown } from '@/components/Countdown';
 
 // Helper to generate a 6-digit string
 const generate6DigitString = () => Array.from({ length: 6 }, () => Math.floor(Math.random() * 10)).join('');
@@ -158,12 +159,14 @@ export default function DrawDetailPage() {
     fetchDrawAndTickets(); 
   };
 
+  const isDrawActive = draw && new Date(draw.startDate) <= new Date() && new Date(draw.endDate) > new Date();
+
   const handlePayment = async () => {
     if (!user) {
         toast({ title: "Not Logged In", description: "You must be logged in to purchase a ticket.", variant: "destructive" });
         return;
     }
-    if (!draw) return;
+    if (!draw || !isDrawActive) return;
 
     setIsBuying(true);
     toast({
@@ -221,7 +224,7 @@ export default function DrawDetailPage() {
             <p className="text-muted-foreground mt-2 mb-4">You're officially in the draw.</p>
             <p className="font-semibold">Your ticket number is:</p>
             <TicketDisplay numbers={lastPurchasedTicket} />
-            <p className="mt-4 text-sm text-muted-foreground">We wish you the best of luck. Winners will be announced on {draw.endDate.toLocaleDateString()}.</p>
+            <p className="mt-4 text-sm text-muted-foreground">We wish you the best of luck. Winners will be announced on {new Date(draw.endDate).toLocaleDateString()}.</p>
           </CardContent>
           <CardContent className="flex flex-col sm:flex-row items-center justify-center gap-4">
             <Button onClick={resetForNewPurchase} variant="outline">
@@ -250,9 +253,19 @@ export default function DrawDetailPage() {
         )}
         <CardHeader>
           <CardTitle className="font-headline text-3xl">{draw.name}</CardTitle>
-          <CardDescription>Prize: ₹{draw.prize.toLocaleString('en-IN')} | Draw ends on: {draw.endDate.toLocaleDateString()}</CardDescription>
+          <CardDescription>Prize: ₹{draw.prize.toLocaleString('en-IN')} | Ends on: {new Date(draw.endDate).toLocaleDateString()}</CardDescription>
         </CardHeader>
         <CardContent>
+          {!isDrawActive && (
+              <div className="text-center bg-muted/50 p-4 rounded-lg mb-6">
+                  <h3 className="font-bold font-headline text-primary flex items-center justify-center gap-2">
+                    <Clock className="h-5 w-5"/>
+                    This draw is not active yet!
+                  </h3>
+                  <p className="text-muted-foreground text-sm mt-1">It starts on: {new Date(draw.startDate).toLocaleString()}</p>
+                  <Countdown endDate={draw.startDate} />
+              </div>
+          )}
           <div className="text-center space-y-6">
             <div>
               <h3 className="font-semibold mb-2">Enter Your 6-Digit Number</h3>
@@ -267,6 +280,7 @@ export default function DrawDetailPage() {
                     onChange={(e) => handleInputChange(index, e.target.value)}
                     onKeyDown={(e) => handleKeyDown(index, e)}
                     className="w-12 h-14 text-center text-2xl font-bold rounded-md border bg-muted/50 text-foreground focus:ring-2 focus:ring-ring"
+                    disabled={!isDrawActive}
                   />
                 ))}
               </div>
@@ -274,7 +288,7 @@ export default function DrawDetailPage() {
             
             <p className="text-sm text-muted-foreground">OR</p>
             
-            <Button variant="outline" onClick={generateRandomTicket}>
+            <Button variant="outline" onClick={generateRandomTicket} disabled={!isDrawActive}>
               <Dices className="mr-2 h-4 w-4"/> Generate Random Ticket
             </Button>
           </div>
@@ -282,7 +296,7 @@ export default function DrawDetailPage() {
 
         <CardContent>
           <div className="space-y-4">
-            {availableFilteredTickets.length > 0 && (
+            {availableFilteredTickets.length > 0 && isDrawActive && (
                 <div>
                   <h4 className="font-semibold text-sm flex items-center gap-2 text-muted-foreground mb-2"><Search className="h-4 w-4" /> Available based on your input:</h4>
                   <div className="flex flex-wrap justify-center gap-2">
@@ -294,7 +308,7 @@ export default function DrawDetailPage() {
                   </div>
                 </div>
             )}
-             {availableFilteredTickets.length === 0 && ticketNumbers.every(n => n === '') && (
+             {availableFilteredTickets.length === 0 && ticketNumbers.every(n => n === '') && isDrawActive && (
                 <div>
                   <h4 className="font-semibold text-sm text-muted-foreground mb-2">Feeling lucky? Try one of these:</h4>
                   <div className="flex flex-wrap justify-center gap-2">
@@ -312,7 +326,7 @@ export default function DrawDetailPage() {
         <CardContent>
           <Button 
             onClick={handlePayment} 
-            disabled={!isTicketComplete || isBuying} 
+            disabled={!isTicketComplete || isBuying || !isDrawActive} 
             className="w-full bg-accent text-accent-foreground hover:bg-accent/90 font-bold"
             size="lg"
           >
