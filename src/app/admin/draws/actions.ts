@@ -6,6 +6,7 @@ import { db, storage } from '@/lib/firebase';
 import { collection, addDoc, serverTimestamp, getDocs, doc, updateDoc, getDoc, deleteDoc, query, where, limit } from 'firebase/firestore';
 import { ref, uploadBytes, getDownloadURL, deleteObject } from 'firebase/storage';
 import type { Draw } from '@/lib/types';
+import { scheduleWinnerSelection } from '@/ai/flows/schedule-winner-selection';
 
 // Helper function to create a UTC date from a local datetime string
 const createUtcDate = (dateString: string) => {
@@ -224,4 +225,16 @@ export async function getDraw(id: string): Promise<Draw | null> {
         } as Draw;
     }
     return null;
+}
+
+export async function runScheduler() {
+    try {
+        const result = await scheduleWinnerSelection({ currentTime: new Date().toISOString() });
+        revalidatePath('/admin/draws');
+        revalidatePath('/admin/announcements');
+        return { success: true, message: `Scheduler ran successfully. Processed ${result.processedDraws.length} draws.` };
+    } catch (error: any) {
+        console.error('Error running scheduler:', error);
+        return { success: false, message: `Failed to run scheduler: ${error.message}` };
+    }
 }

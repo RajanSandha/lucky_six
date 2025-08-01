@@ -30,8 +30,8 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { useToast } from "@/hooks/use-toast";
-import { PlusCircle, Loader2, MoreHorizontal, Edit, Trash2, Trophy, TestTube2, Megaphone } from "lucide-react";
-import { getDraws, deleteDraw } from "./actions";
+import { PlusCircle, Loader2, MoreHorizontal, Edit, Trash2, Trophy, TestTube2, Megaphone, PlayCircle } from "lucide-react";
+import { getDraws, deleteDraw, runScheduler } from "./actions";
 import { createMockData } from "./[id]/announce/actions";
 import type { Draw } from "@/lib/types";
 import {
@@ -124,6 +124,7 @@ function DrawsAdminPage() {
   const [isMocking, setIsMocking] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
+  const [isSchedulerRunning, setIsSchedulerRunning] = useState(false);
   const [draws, setDraws] = useState<Draw[]>([]);
   const [selectedDraw, setSelectedDraw] = useState<Draw | null>(null);
   const { toast } = useToast();
@@ -179,6 +180,17 @@ function DrawsAdminPage() {
     setIsDeleting(false);
   }
 
+  const handleRunScheduler = async () => {
+      setIsSchedulerRunning(true);
+      const result = await runScheduler();
+      if (result.success) {
+        toast({ title: "Success!", description: result.message });
+      } else {
+        toast({ title: "Error", description: result.message, variant: "destructive" });
+      }
+      setIsSchedulerRunning(false);
+  }
+
   return (
     <div className="container mx-auto py-12 px-4">
       <div className="flex justify-between items-center mb-8">
@@ -186,10 +198,16 @@ function DrawsAdminPage() {
             <h1 className="text-4xl font-bold font-headline text-primary">Draws Management</h1>
             <p className="text-lg text-muted-foreground mt-2">Create, view, and manage all lottery draws.</p>
         </div>
-        <Button className="bg-primary hover:bg-primary/90 text-primary-foreground" onClick={handleCreateClick}>
-            <PlusCircle className="mr-2 h-4 w-4" />
-            Create New Draw
-        </Button>
+        <div className="flex gap-2">
+            <Button variant="outline" onClick={handleRunScheduler} disabled={isSchedulerRunning}>
+                {isSchedulerRunning ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <PlayCircle className="mr-2 h-4 w-4" />}
+                Run Scheduler
+            </Button>
+            <Button className="bg-primary hover:bg-primary/90 text-primary-foreground" onClick={handleCreateClick}>
+                <PlusCircle className="mr-2 h-4 w-4" />
+                Create New Draw
+            </Button>
+        </div>
         <DrawForm
             key={selectedDraw?.id || 'new-draw'}
             open={isFormOpen}
@@ -308,4 +326,3 @@ function DrawsAdminPage() {
 }
 
 export default withAdminAuth(DrawsAdminPage);
-
