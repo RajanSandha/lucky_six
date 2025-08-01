@@ -65,6 +65,7 @@ function AnnounceWinnerComponent({ draw, allTickets }: { draw: Draw; allTickets:
   const runSlotMachine = (ticket: FullTicket) => {
     return new Promise<void>(resolve => {
         setIsRolling(true);
+        setRollingNumbers(Array(6).fill('0'));
         setRevealedIndices([]);
         const ticketNumbers = ticket.numbers.split('');
         
@@ -121,18 +122,21 @@ function AnnounceWinnerComponent({ draw, allTickets }: { draw: Draw; allTickets:
 
   useEffect(() => {
     // Automatically start the first round
-    if (stage === STAGES.QUALIFIER && !isProcessing && selectedForRound.length === 0) {
+    if (stage === STAGES.QUALIFIER && !isProcessing && selectedForRound.length === 0 && currentPool.length === allTickets.length) {
         runStage(stage, currentPool);
     }
-  }, [stage, isProcessing, currentPool, selectedForRound]);
+  }, [stage, isProcessing, currentPool, selectedForRound.length, allTickets.length]);
 
 
   const handleNextStageClick = () => {
     if (!isProcessing && stage !== STAGES.WINNER) {
-        const nextStage = currentStageConfig.nextStage as string;
-        if (nextStage) {
+        const nextStageKey = currentStageConfig.nextStage;
+        if (nextStageKey) {
             setSelectedForRound([]); // Clear selections for the new round
-            setStage(nextStage);
+            setStage(nextStageKey);
+            if (STAGE_CONFIG[nextStageKey as keyof typeof STAGE_CONFIG].nextCount) {
+                runStage(nextStageKey, currentPool);
+            }
         }
     }
   }
@@ -172,8 +176,6 @@ function AnnounceWinnerComponent({ draw, allTickets }: { draw: Draw; allTickets:
     );
   }
 
-  const allTicketsInPool = allTickets.filter(t => currentPool.some(p => p.id === t.id));
-
   return (
     <div className="container mx-auto py-12 px-4">
       <div className="text-center mb-8">
@@ -183,7 +185,7 @@ function AnnounceWinnerComponent({ draw, allTickets }: { draw: Draw; allTickets:
         <p className="text-muted-foreground mt-2">
             {isProcessing ? (currentStageConfig.subTitle || `Draw: ${draw.name} | Total Tickets: ${allTickets.length}`) : `Ready for the next round?`}
         </p>
-         {!isProcessing && stage !== STAGES.WINNER && (
+         {!isProcessing && stage !== STAGES.IDLE && stage !== STAGES.QUALIFIER && stage !== STAGES.WINNER && (
             <Button onClick={handleNextStageClick} disabled={isProcessing} className="mt-4">
                 {isProcessing && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
                 {currentStageConfig.buttonText}
@@ -225,7 +227,7 @@ function AnnounceWinnerComponent({ draw, allTickets }: { draw: Draw; allTickets:
       
        <Card className="mt-6">
             <CardHeader>
-                <CardTitle>Ticket Pool ({currentPool.length})</CardTitle>
+                <CardTitle>Ticket Pool ({allTickets.length})</CardTitle>
                 <CardDescription>All tickets currently in the running for this round.</CardDescription>
             </CardHeader>
             <CardContent className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-6 lg:grid-cols-8 gap-2">
@@ -254,5 +256,3 @@ function AnnounceWinnerComponent({ draw, allTickets }: { draw: Draw; allTickets:
 
 
 export const AnnounceWinner = withAdminAuth(AnnounceWinnerComponent);
-
-    

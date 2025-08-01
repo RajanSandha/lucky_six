@@ -32,7 +32,7 @@ export const NumberRoller = ({ finalNumber, isRolling, className }: NumberRoller
     <div
       className={cn(
         "w-12 h-16 flex items-center justify-center text-3xl font-bold rounded-md border-2 border-gray-600 bg-gray-800 text-white transition-all duration-300 shadow-inner",
-        !isRolling && "bg-accent text-accent-foreground border-accent-foreground animate-pulse",
+        !isRolling && "bg-accent text-accent-foreground border-accent-foreground",
         className
       )}
     >
