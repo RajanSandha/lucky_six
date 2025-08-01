@@ -27,16 +27,12 @@ interface DrawFormProps {
   draw?: Draw | null;
 }
 
-// Helper to format date to yyyy-MM-ddThh:mm
+// Helper to format date to yyyy-MM-ddThh:mm for datetime-local input
 const formatDateTimeLocal = (date: Date) => {
   if (!date || isNaN(date.getTime())) return '';
-  const ten = (i: number) => (i < 10 ? "0" : "") + i;
-  const YYYY = date.getFullYear();
-  const MM = ten(date.getMonth() + 1);
-  const DD = ten(date.getDate());
-  const HH = ten(date.getHours());
-  const II = ten(date.getMinutes());
-  return `${YYYY}-${MM}-${DD}T${HH}:${II}`;
+  // Adjust for timezone offset to display local time in the input
+  const localDate = new Date(date.getTime() - (date.getTimezoneOffset() * 60000));
+  return localDate.toISOString().slice(0, 16);
 };
 
 
