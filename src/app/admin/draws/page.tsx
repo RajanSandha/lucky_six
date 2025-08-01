@@ -21,7 +21,6 @@ import {
   DialogFooter,
   DialogHeader,
   DialogTitle,
-  DialogTrigger,
 } from "@/components/ui/dialog";
 import {
   DropdownMenu,
@@ -219,9 +218,10 @@ function DrawsAdminPage() {
                 {isLoading && <TableRow><TableCell colSpan={6} className="text-center"><Loader2 className="mx-auto h-8 w-8 animate-spin"/></TableCell></TableRow>}
                 {!isLoading && draws.map((draw) => {
                     const status = getDrawStatus(draw);
-                    const isEditable = new Date(draw.endDate) > new Date() && !draw.status;
+                    const isEditable = new Date(draw.startDate) > new Date() && !draw.status;
                     const canAnnounce = status.text === "Awaiting Winner";
-                    
+                    const canBeDeleted = !draw.status; // Simplified: can only delete draws that haven't started/finished
+
                     return (
                     <TableRow key={draw.id}>
                         <TableCell className="font-medium">{draw.name}</TableCell>
@@ -261,7 +261,7 @@ function DrawsAdminPage() {
                                     Generate Mock Data
                                   </DropdownMenuItem>
                                   <AlertDialogTrigger asChild>
-                                    <DropdownMenuItem className="text-destructive focus:text-destructive" disabled={!!draw.status}>
+                                    <DropdownMenuItem className="text-destructive focus:text-destructive" disabled={!canBeDeleted}>
                                       <Trash2 className="mr-2 h-4 w-4" />
                                       Delete
                                     </DropdownMenuItem>

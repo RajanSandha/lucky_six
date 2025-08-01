@@ -126,6 +126,18 @@ export async function updateDraw(drawId: string, formData: FormData) {
 
 export async function deleteDraw(drawId: string) {
     try {
+        const drawRef = doc(db, 'draws', drawId);
+        const drawSnap = await getDoc(drawRef);
+
+        if (!drawSnap.exists()) {
+             return { success: false, message: 'Draw not found.' };
+        }
+        
+        // Prevent deletion if draw is finished
+        if (drawSnap.data().status === 'finished') {
+            return { success: false, message: 'Cannot delete a completed draw.' };
+        }
+
         // Check if any tickets have been purchased for this draw
         const ticketsRef = collection(db, 'tickets');
         const q = query(ticketsRef, where('drawId', '==', drawId), limit(1));
@@ -135,12 +147,6 @@ export async function deleteDraw(drawId: string) {
             return { success: false, message: 'Cannot delete draw with purchased tickets.' };
         }
 
-        const drawRef = doc(db, 'draws', drawId);
-        const drawSnap = await getDoc(drawRef);
-
-        if (!drawSnap.exists()) {
-             return { success: false, message: 'Draw not found.' };
-        }
 
         // Delete image from storage
         const imageUrl = drawSnap.data().imageUrl;

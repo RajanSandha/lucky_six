@@ -27,6 +27,6 @@ export type Draw = {
   winningTicketId?: string;
   winnerId?: string;
   imageUrl?: string;
-  status?: 'active' | 'finished' | 'upcoming';
+  status?: 'finished';
   [key: string]: any; // To allow for dynamic round winner fields
 };
