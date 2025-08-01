@@ -1,20 +1,22 @@
+
 "use client";
 
 import { useState, useMemo, useEffect, useCallback } from 'react';
 import type { Draw, Ticket, User } from '@/lib/types';
 import { Button } from './ui/button';
 import { TicketCard } from './TicketCard';
-import { setWinnerAsFinished, getTicketsForDraw } from '@/app/admin/draws/[id]/announce/actions';
+import { setWinnerAsFinished } from '@/app/admin/draws/[id]/announce/actions';
 import { getDraw } from '@/app/admin/draws/actions';
 import { useToast } from '@/hooks/use-toast';
-import { Loader2, Crown, PartyPopper, Hourglass, CheckCircle } from 'lucide-react';
+import { Loader2, Crown, PartyPopper, Hourglass, CheckCircle, ChevronDown, Award } from 'lucide-react';
 import { useWindowSize } from 'react-use';
 import Confetti from 'react-confetti';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from './ui/card';
 import { NumberRoller } from './NumberRoller';
 import withAdminAuth from './withAdminAuth';
 import { db } from '@/lib/firebase';
-import { doc, onSnapshot } from 'firebase/firestore';
+import { doc, onSnapshot, collection, query, where, getDocs } from 'firebase/firestore';
+import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from './ui/accordion';
 
 const STAGE_CONFIG = {
   1: { title: 'Qualifier Round', subTitle: 'Revealing the Top 20', count: 20 },
@@ -25,12 +27,74 @@ const STAGE_CONFIG = {
 
 type FullTicket = Ticket & { user: User | null };
 
-function AnnounceWinnerComponent({ initialDraw, allTickets }: { initialDraw: Draw; allTickets: FullTicket[] }) {
+const getTicketsByRound = (round: number, draw: Draw, allTickets: FullTicket[]): FullTicket[] => {
+    const roundWinnerIds = draw.roundWinners?.[round] || [];
+    return roundWinnerIds.map(id => allTickets.find(t => t.id === id)).filter(Boolean) as FullTicket[];
+}
+
+function FinishedDrawDisplay({ draw, allTickets }: { draw: Draw, allTickets: FullTicket[] }) {
+    
+    const finalWinner = getTicketsByRound(4, draw, allTickets)[0];
+    const semiFinalists = getTicketsByRound(3, draw, allTickets);
+    const quarterFinalists = getTicketsByRound(2, draw, allTickets);
+    const qualifiers = getTicketsByRound(1, draw, allTickets);
+
+    const renderWinnerList = (tickets: FullTicket[]) => (
+        <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-5 gap-2 py-2">
+            {tickets.map(ticket => <TicketCard key={ticket.id} ticket={ticket} isSelected={true}/>)}
+        </div>
+    );
+
+    return (
+        <div className="container mx-auto py-12 px-4">
+            <div className="text-center mb-8">
+                <h1 className="text-3xl font-bold font-headline text-primary">{draw.name} - Results</h1>
+                <p className="text-muted-foreground mt-2">The ceremony concluded on {new Date(draw.announcementDate).toLocaleString()}</p>
+            </div>
+
+            <Card className="max-w-4xl mx-auto">
+                <CardHeader className="text-center">
+                    <div className="mx-auto bg-primary/10 p-6 rounded-full w-fit mb-4">
+                        <Crown className="h-16 w-16 text-primary"/>
+                    </div>
+                    <CardTitle className="text-3xl text-accent-foreground font-headline">Grand Prize Winner</CardTitle>
+                    {finalWinner && <div className="mt-4"><TicketCard ticket={finalWinner} isWinner={true} /></div>}
+                </CardHeader>
+                <CardContent>
+                    <Accordion type="single" collapsible className="w-full">
+                        <AccordionItem value="item-1">
+                            <AccordionTrigger className="font-headline text-xl">Semi-Finalists (Top 3)</AccordionTrigger>
+                            <AccordionContent>
+                               {renderWinnerList(semiFinalists)}
+                            </AccordionContent>
+                        </AccordionItem>
+                        <AccordionItem value="item-2">
+                            <AccordionTrigger className="font-headline text-xl">Quarter-Finalists (Top 10)</AccordionTrigger>
+                            <AccordionContent>
+                                {renderWinnerList(quarterFinalists)}
+                            </AccordionContent>
+                        </AccordionItem>
+                        <AccordionItem value="item-3">
+                            <AccordionTrigger className="font-headline text-xl">Qualifiers (Top 20)</AccordionTrigger>
+                            <AccordionContent>
+                                {renderWinnerList(qualifiers)}
+                            </AccordionContent>
+                        </AccordionItem>
+                    </Accordion>
+                </CardContent>
+            </Card>
+        </div>
+    )
+}
+
+
+function AnnounceWinnerComponent({ initialDraw, allTickets: initialAllTickets }: { initialDraw: Draw; allTickets: FullTicket[] }) {
   const [draw, setDraw] = useState(initialDraw);
+  const [allTickets, setAllTickets] = useState(initialAllTickets);
   const [currentStage, setCurrentStage] = useState(1);
   const [revealedInStage, setRevealedInStage] = useState<FullTicket[]>([]);
   const [highlightedTicket, setHighlightedTicket] = useState<string | null>(null);
-  const [isCeremonyFinished, setIsCeremonyFinished] = useState(false);
+  const [isCeremonyFinished, setIsCeremonyFinished] = useState(draw.status === 'finished');
 
   const { toast } = useToast();
   const { width, height } = useWindowSize();
@@ -40,14 +104,15 @@ function AnnounceWinnerComponent({ initialDraw, allTickets }: { initialDraw: Dra
   const [revealedIndices, setRevealedIndices] = useState<number[]>([]);
 
   const stageConfig = STAGE_CONFIG[currentStage as keyof typeof STAGE_CONFIG];
-  const winner = useMemo(() => isCeremonyFinished ? revealedInStage[0] : null, [isCeremonyFinished, revealedInStage]);
+  const winner = useMemo(() => isCeremonyFinished ? getTicketsByRound(4, draw, allTickets)[0] : null, [isCeremonyFinished, draw, allTickets]);
+
 
   // Real-time listener for draw updates
   useEffect(() => {
     if (!draw.id) return;
     const unsub = onSnapshot(doc(db, "draws", draw.id), (doc) => {
         if (!doc.exists()) return;
-        const data = doc.data() as any; // Firestore data can be messy with timestamps
+        const data = doc.data() as any;
         
         const newDrawData: Draw = {
             ...data,
@@ -57,6 +122,9 @@ function AnnounceWinnerComponent({ initialDraw, allTickets }: { initialDraw: Dra
             announcementDate: data.announcementDate?.toDate ? data.announcementDate.toDate() : new Date(data.announcementDate),
         };
         setDraw(newDrawData);
+        if (newDrawData.status === 'finished') {
+            setIsCeremonyFinished(true);
+        }
     });
     return () => unsub();
   }, [draw.id]);
@@ -75,7 +143,6 @@ function AnnounceWinnerComponent({ initialDraw, allTickets }: { initialDraw: Dra
                         setHighlightedTicket(ticket.id);
                         setTimeout(() => {
                           setRevealedInStage(prev => {
-                            // Avoid adding duplicates
                             if (prev.find(t => t.id === ticket.id)) return prev;
                             return [...prev, ticket];
                           });
@@ -90,7 +157,7 @@ function AnnounceWinnerComponent({ initialDraw, allTickets }: { initialDraw: Dra
                 setTimeout(() => revealNumber(index + 1), 300);
             };
             revealNumber(0);
-        }, 1000); // Initial delay before rolling starts
+        }, 1000);
     });
   }, []);
 
@@ -101,25 +168,18 @@ function AnnounceWinnerComponent({ initialDraw, allTickets }: { initialDraw: Dra
     const ticketsToReveal = winnerIds.map(id => allTickets.find(t => t.id === id)).filter(Boolean) as FullTicket[];
     
     for (const ticket of ticketsToReveal) {
-        // Ensure we don't re-animate an already revealed ticket in the same stage
         if(!revealedInStage.find(t => t.id === ticket.id)) {
             await runSlotMachine(ticket);
         }
     }
     
-    // After stage animation is complete
     if (stage < 4) {
-      // Pause for 10 seconds before starting next stage
       const timeoutId = setTimeout(() => {
         setCurrentStage(prev => prev + 1);
         setRevealedInStage([]);
       }, 10000);
-
-      // Cleanup timeout on component unmount or stage change
       return () => clearTimeout(timeoutId);
-
     } else {
-      // This is the final winner
       await setWinnerAsFinished(draw.id);
       setIsCeremonyFinished(true);
     }
@@ -128,15 +188,32 @@ function AnnounceWinnerComponent({ initialDraw, allTickets }: { initialDraw: Dra
 
 
   useEffect(() => {
-    // This effect triggers the animation for the current stage
     if (draw.status === 'announcing' && stageConfig) {
         const cleanup = runStageAnimation(currentStage);
         return cleanup;
     }
   }, [draw.status, currentStage, runStageAnimation, stageConfig]);
 
+  if (isCeremonyFinished) {
+      if (winner) {
+          return <FinishedDrawDisplay draw={draw} allTickets={allTickets} />
+      }
+      return (
+          <div className="relative min-h-screen flex flex-col items-center justify-center bg-background text-center p-4 overflow-hidden">
+            <Confetti width={width} height={height} recycle={false} numberOfPieces={500} />
+            <div className="mx-auto bg-primary/10 p-6 rounded-full w-fit mb-6">
+                <Crown className="h-16 w-16 text-primary"/>
+            </div>
+            <h1 className="text-4xl md:text-6xl font-bold font-headline text-primary">
+              Congratulations to the Winner!
+            </h1>
+            <p className="text-muted-foreground mt-2 mb-6">The results for "{draw.name}" are finalized.</p>
+             <p className="text-sm text-muted-foreground">The results page has been updated.</p>
+          </div>
+        );
+  }
   
-  if (draw.status !== 'announcing' && draw.status !== 'finished') {
+  if (draw.status !== 'announcing') {
     return (
        <div className="container mx-auto py-12 px-4 text-center">
             <Hourglass className="h-16 w-16 mx-auto text-primary mb-4" />
@@ -146,27 +223,6 @@ function AnnounceWinnerComponent({ initialDraw, allTickets }: { initialDraw: Dra
     )
   }
   
-  if (winner) {
-    return (
-      <div className="relative min-h-screen flex flex-col items-center justify-center bg-background text-center p-4 overflow-hidden">
-        <Confetti width={width} height={height} recycle={false} numberOfPieces={500} />
-        <div className="mx-auto bg-primary/10 p-6 rounded-full w-fit mb-6">
-            <Crown className="h-16 w-16 text-primary"/>
-        </div>
-        <h1 className="text-4xl md:text-6xl font-bold font-headline text-primary">
-          Congratulations!
-        </h1>
-        <p className="text-2xl md:text-4xl font-semibold mt-4">{winner.user?.name || 'Anonymous'}</p>
-        <p className="text-muted-foreground mt-2 mb-6">You've won the "{draw.name}" draw!</p>
-        <div className="my-8">
-            <p className="text-muted-foreground">Winning Ticket</p>
-            <TicketCard ticket={winner} isWinner={true} />
-        </div>
-        <p className="text-sm text-muted-foreground">The results page has been updated.</p>
-      </div>
-    );
-  }
-
   return (
     <div className="container mx-auto py-12 px-4">
       <div className="text-center mb-8">
@@ -234,7 +290,7 @@ function AnnounceWinnerComponent({ initialDraw, allTickets }: { initialDraw: Dra
                 {allTickets.map(ticket => {
                     const isRevealed = revealedInStage.some(t => t.id === ticket.id);
                     const currentRoundWinnerIds = draw.roundWinners?.[currentStage] || [];
-                    const previousRoundWinnerIds = draw.roundWinners?.[currentStage - 1] || allTickets.map(t => t.id); // all tickets for stage 1
+                    const previousRoundWinnerIds = currentStage > 1 ? (draw.roundWinners?.[currentStage - 1] || []) : allTickets.map(t => t.id);
                     
                     const isStillIn = previousRoundWinnerIds.includes(ticket.id);
                     const isEliminated = !isStillIn;
@@ -255,7 +311,6 @@ function AnnounceWinnerComponent({ initialDraw, allTickets }: { initialDraw: Dra
   );
 }
 
-// Higher-order component to fetch initial data
 const AnnounceWinnerWithData = ({ params }: { params: { id: string } }) => {
     const [draw, setDraw] = useState<Draw | null>(null);
     const [tickets, setTickets] = useState<FullTicket[] | null>(null);
@@ -273,10 +328,25 @@ const AnnounceWinnerWithData = ({ params }: { params: { id: string } }) => {
                 }
                 setDraw(drawData);
 
-                const ticketData = await getTicketsForDraw(params.id);
-                setTickets(ticketData);
+                // Fetch all tickets once
+                const ticketsRef = collection(db, 'tickets');
+                const ticketsQuery = query(ticketsRef, where('drawId', '==', params.id));
+                const ticketsSnapshot = await getDocs(ticketsQuery);
+                const allTicketsData = await Promise.all(ticketsSnapshot.docs.map(async docSnapshot => {
+                    const ticketData = { id: docSnapshot.id, ...docSnapshot.data() } as Ticket;
+                    let user: User | null = null;
+                    if (ticketData.userId) {
+                        const userRef = doc(db, 'users', ticketData.userId);
+                        const userSnap = await getDoc(userRef);
+                        user = userSnap.exists() ? { id: userSnap.id, ...userSnap.data() } as User : null;
+                    }
+                    return { ...ticketData, user };
+                }));
+                setTickets(allTicketsData);
+
             } catch (e: any) {
                 setError(`Failed to load data: ${e.message}`);
+                console.error(e);
             } finally {
                 setLoading(false);
             }

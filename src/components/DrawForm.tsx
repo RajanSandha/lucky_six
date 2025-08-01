@@ -1,3 +1,4 @@
+
 "use client";
 
 import { useState } from "react";
@@ -28,6 +29,7 @@ interface DrawFormProps {
 
 // Helper to format date to yyyy-MM-ddThh:mm
 const formatDateTimeLocal = (date: Date) => {
+  if (!date || isNaN(date.getTime())) return '';
   const ten = (i: number) => (i < 10 ? "0" : "") + i;
   const YYYY = date.getFullYear();
   const MM = ten(date.getMonth() + 1);
@@ -42,6 +44,19 @@ export function DrawForm({ open, onOpenChange, onSuccess, draw }: DrawFormProps)
   const [isLoading, setIsLoading] = useState(false);
   const { toast } = useToast();
   const isEditing = !!draw;
+  
+  const [endDate, setEndDate] = useState(draw ? formatDateTimeLocal(new Date(draw.endDate)) : '');
+  const [announcementDate, setAnnouncementDate] = useState(draw ? formatDateTimeLocal(new Date(draw.announcementDate)) : '');
+
+  const handleEndDateChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+      const newEndDate = e.target.value;
+      setEndDate(newEndDate);
+      if(newEndDate) {
+          const newAnnouncementDate = new Date(new Date(newEndDate).getTime() + 2 * 60 * 60 * 1000);
+          setAnnouncementDate(formatDateTimeLocal(newAnnouncementDate));
+      }
+  }
+
 
   const handleFormSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
@@ -115,12 +130,13 @@ export function DrawForm({ open, onOpenChange, onSuccess, draw }: DrawFormProps)
               </div>
               <div className="space-y-2">
                 <Label htmlFor="endDate">End Date</Label>
-                <Input id="endDate" name="endDate" type="datetime-local" defaultValue={draw ? formatDateTimeLocal(new Date(draw.endDate)) : ''} required />
+                <Input id="endDate" name="endDate" type="datetime-local" value={endDate} onChange={handleEndDateChange} required />
               </div>
             </div>
              <div className="space-y-2">
                 <Label htmlFor="announcementDate">Announcement Date</Label>
-                <Input id="announcementDate" name="announcementDate" type="datetime-local" defaultValue={draw ? formatDateTimeLocal(new Date(draw.announcementDate)) : ''} required />
+                <Input id="announcementDate" name="announcementDate" type="datetime-local" value={announcementDate} onChange={e => setAnnouncementDate(e.target.value)} required />
+                <p className="text-xs text-muted-foreground">Defaults to 2 hours after the end date.</p>
               </div>
           </div>
           <DialogFooter>

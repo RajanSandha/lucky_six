@@ -35,12 +35,19 @@ export async function createDraw(formData: FormData) {
     const ticketPrice = formData.get('ticketPrice') as string;
     const startDate = formData.get('startDate') as string;
     const endDate = formData.get('endDate') as string;
-    const announcementDate = formData.get('announcementDate') as string;
+    let announcementDate = formData.get('announcementDate') as string;
     const imageFile = formData.get('image') as File | null;
     
-    if (!name || !description || !prize || !ticketPrice || !startDate || !endDate || !announcementDate) {
+    if (!name || !description || !prize || !ticketPrice || !startDate || !endDate) {
       return { success: false, message: 'Please fill out all required fields.' };
     }
+    
+    const endDateObj = new Date(endDate);
+    if (!announcementDate) {
+        // Default announcement date to 2 hours after end date
+        announcementDate = new Date(endDateObj.getTime() + 2 * 60 * 60 * 1000).toISOString();
+    }
+
 
     let imageUrl = 'https://placehold.co/600x400.png';
 
@@ -54,7 +61,7 @@ export async function createDraw(formData: FormData) {
       prize: Number(prize),
       ticketPrice: Number(ticketPrice),
       startDate: new Date(startDate),
-      endDate: new Date(endDate),
+      endDate: endDateObj,
       announcementDate: new Date(announcementDate),
       imageUrl: imageUrl,
       createdAt: serverTimestamp(),
@@ -83,18 +90,26 @@ export async function updateDraw(drawId: string, formData: FormData) {
             return { success: false, message: 'Draw not found.' };
         }
 
+        const oldData = drawSnap.data();
+        const oldEndDate = oldData.endDate.toDate();
+        const oldAnnouncementDate = oldData.announcementDate ? oldData.announcementDate.toDate() : new Date(oldEndDate.getTime() + 2 * 60 * 60 * 1000);
+
+
         const name = formData.get('name') as string;
         const description = formData.get('description') as string;
         const prize = formData.get('prize') as string;
         const ticketPrice = formData.get('ticketPrice') as string;
         const startDate = formData.get('startDate') as string;
         const endDate = formData.get('endDate') as string;
-        const announcementDate = formData.get('announcementDate') as string;
+        let announcementDate = formData.get('announcementDate') as string;
         const imageFile = formData.get('image') as File | null;
 
         if (!name || !description || !prize || !ticketPrice || !startDate || !endDate || !announcementDate) {
             return { success: false, message: 'Please fill out all required fields.' };
         }
+
+        const newEndDate = new Date(endDate);
+        const announcementDuration = oldAnnouncementDate.getTime() - oldEndDate.getTime();
 
         const updatedData: Partial<Draw> = {
             name,
@@ -102,8 +117,8 @@ export async function updateDraw(drawId: string, formData: FormData) {
             prize: Number(prize),
             ticketPrice: Number(ticketPrice),
             startDate: new Date(startDate),
-            endDate: new Date(endDate),
-            announcementDate: new Date(announcementDate),
+            endDate: newEndDate,
+            announcementDate: new Date(newEndDate.getTime() + announcementDuration),
         };
 
         if (imageFile && imageFile.size > 0) {
@@ -180,12 +195,13 @@ export async function getDraws(): Promise<Draw[]> {
     const drawSnapshot = await getDocs(drawsCol);
     const drawList = drawSnapshot.docs.map(doc => {
         const data = doc.data();
+        const endDate = data.endDate.toDate();
         return {
             id: doc.id,
             ...data,
             startDate: data.startDate.toDate(),
-            endDate: data.endDate.toDate(),
-            announcementDate: data.announcementDate ? data.announcementDate.toDate() : new Date(data.endDate.toDate().getTime() + 3600000), // Default to 1 hr after end if not set
+            endDate: endDate,
+            announcementDate: data.announcementDate ? data.announcementDate.toDate() : new Date(endDate.getTime() + 2 * 60 * 60 * 1000), // Default to 2 hr after end if not set
             createdAt: data.createdAt?.toDate()
         } as Draw;
     });
@@ -198,12 +214,13 @@ export async function getDraw(id: string): Promise<Draw | null> {
     const drawSnap = await getDoc(drawRef);
     if (drawSnap.exists()) {
         const data = drawSnap.data();
+        const endDate = data.endDate.toDate();
         return {
             id: drawSnap.id,
             ...data,
             startDate: data.startDate.toDate(),
-            endDate: data.endDate.toDate(),
-            announcementDate: data.announcementDate ? data.announcementDate.toDate() : new Date(data.endDate.toDate().getTime() + 3600000), // Default to 1 hr after end if not set
+            endDate: endDate,
+            announcementDate: data.announcementDate ? data.announcementDate.toDate() : new Date(endDate.getTime() + 2 * 60 * 60 * 1000), // Default to 2 hr after end if not set
             createdAt: data.createdAt?.toDate()
         } as Draw;
     }
