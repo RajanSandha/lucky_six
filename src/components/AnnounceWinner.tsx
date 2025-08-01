@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useMemo } from 'react';
 import type { Draw, Ticket, User } from '@/lib/types';
 import { Button } from './ui/button';
 import { TicketCard } from './TicketCard';
@@ -9,6 +9,7 @@ import { useToast } from '@/hooks/use-toast';
 import { Loader2, Crown, PartyPopper } from 'lucide-react';
 import { useWindowSize } from 'react-use';
 import Confetti from 'react-confetti';
+import withAdminAuth from './withAdminAuth';
 
 const STAGES = {
   IDLE: 'idle',
@@ -41,7 +42,7 @@ const shuffleArray = (array: any[]) => {
   return array;
 };
 
-export function AnnounceWinner({ draw, tickets }: { draw: Draw; tickets: FullTicket[] }) {
+function AnnounceWinnerComponent({ draw, tickets }: { draw: Draw; tickets: FullTicket[] }) {
   const [stage, setStage] = useState(STAGES.IDLE);
   const [isProcessing, setIsProcessing] = useState(false);
   const [selectedTickets, setSelectedTickets] = useState<FullTicket[]>(tickets);
@@ -158,3 +159,6 @@ export function AnnounceWinner({ draw, tickets }: { draw: Draw; tickets: FullTic
     </div>
   );
 }
+
+
+export const AnnounceWinner = withAdminAuth(AnnounceWinnerComponent);

@@ -2,7 +2,6 @@ import { getDraw } from '@/app/admin/draws/actions';
 import { notFound } from 'next/navigation';
 import { AnnounceWinner } from '@/components/AnnounceWinner';
 import { getTicketsForDraw } from './actions';
-import withAdminAuth from '@/components/withAdminAuth';
 import type { Draw, Ticket, User } from '@/lib/types';
 
 // Helper to generate a 6-digit string
@@ -26,7 +25,7 @@ const createMockData = (count: number): (Ticket & { user: User | null })[] => {
 };
 
 
-async function AnnounceWinnerPage({ params }: { params: { id: string } }) {
+export default async function AnnounceWinnerPage({ params }: { params: { id: string } }) {
   if (params.id === 'test-draw') {
     const mockDraw: Draw = {
       id: 'test-draw',
@@ -51,5 +50,3 @@ async function AnnounceWinnerPage({ params }: { params: { id: string } }) {
 
   return <AnnounceWinner draw={draw} tickets={tickets} />;
 }
-
-export default withAdminAuth(AnnounceWinnerPage);
