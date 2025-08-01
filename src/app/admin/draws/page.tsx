@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import {
   AlertDialog,
@@ -20,7 +21,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { useToast } from "@/hooks/use-toast";
-import { PlusCircle, Loader2, MoreHorizontal, Edit, Trash2 } from "lucide-react";
+import { PlusCircle, Loader2, MoreHorizontal, Edit, Trash2, Trophy } from "lucide-react";
 import { getDraws, deleteDraw } from "./actions";
 import type { Draw } from "@/lib/types";
 import {
@@ -146,6 +147,8 @@ function DrawsAdminPage() {
                 {!isLoading && draws.map((draw) => {
                     const status = getDrawStatus(draw);
                     const isEditable = new Date(draw.endDate) > new Date();
+                    const isFinished = status.text === "Finished";
+                    const canAnnounce = isFinished && !draw.winningTicketId;
 
                     return (
                     <TableRow key={draw.id}>
@@ -159,48 +162,58 @@ function DrawsAdminPage() {
                         </Badge>
                         </TableCell>
                          <TableCell className="text-right">
-                          <AlertDialog>
-                            <DropdownMenu>
-                              <DropdownMenuTrigger asChild>
-                                <Button variant="ghost" className="h-8 w-8 p-0">
-                                  <span className="sr-only">Open menu</span>
-                                  <MoreHorizontal className="h-4 w-4" />
+                          <div className="flex justify-end items-center gap-2">
+                             {canAnnounce && (
+                                <Button asChild size="sm" className="bg-accent text-accent-foreground hover:bg-accent/90">
+                                  <Link href={`/admin/draws/${draw.id}/announce`}>
+                                      <Trophy className="mr-2 h-4 w-4" />
+                                      Announce
+                                  </Link>
                                 </Button>
-                              </DropdownMenuTrigger>
-                              <DropdownMenuContent align="end">
-                                <DropdownMenuItem onClick={() => handleEditClick(draw)} disabled={!isEditable}>
-                                  <Edit className="mr-2 h-4 w-4" />
-                                  Edit
-                                </DropdownMenuItem>
-                                <AlertDialogTrigger asChild>
-                                  <DropdownMenuItem className="text-destructive focus:text-destructive">
-                                    <Trash2 className="mr-2 h-4 w-4" />
-                                    Delete
+                              )}
+                            <AlertDialog>
+                              <DropdownMenu>
+                                <DropdownMenuTrigger asChild>
+                                  <Button variant="ghost" className="h-8 w-8 p-0">
+                                    <span className="sr-only">Open menu</span>
+                                    <MoreHorizontal className="h-4 w-4" />
+                                  </Button>
+                                </DropdownMenuTrigger>
+                                <DropdownMenuContent align="end">
+                                  <DropdownMenuItem onClick={() => handleEditClick(draw)} disabled={!isEditable}>
+                                    <Edit className="mr-2 h-4 w-4" />
+                                    Edit
                                   </DropdownMenuItem>
-                                </AlertDialogTrigger>
-                              </DropdownMenuContent>
-                            </DropdownMenu>
-                             <AlertDialogContent>
-                                <AlertDialogHeader>
-                                  <AlertDialogTitle>Are you absolutely sure?</AlertDialogTitle>
-                                  <AlertDialogDescription>
-                                    This action cannot be undone. This will permanently delete the draw
-                                    "{draw.name}". You can only delete draws with no purchased tickets.
-                                  </AlertDialogDescription>
-                                </AlertDialogHeader>
-                                <AlertDialogFooter>
-                                  <AlertDialogCancel disabled={isDeleting}>Cancel</AlertDialogCancel>
-                                  <AlertDialogAction
-                                    onClick={() => handleDelete(draw.id)}
-                                    disabled={isDeleting}
-                                    className="bg-destructive hover:bg-destructive/90 text-destructive-foreground"
-                                  >
-                                    {isDeleting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                                    Yes, delete it
-                                  </AlertDialogAction>
-                                </AlertDialogFooter>
-                              </AlertDialogContent>
-                          </AlertDialog>
+                                  <AlertDialogTrigger asChild>
+                                    <DropdownMenuItem className="text-destructive focus:text-destructive" disabled={isFinished}>
+                                      <Trash2 className="mr-2 h-4 w-4" />
+                                      Delete
+                                    </DropdownMenuItem>
+                                  </AlertDialogTrigger>
+                                </DropdownMenuContent>
+                              </DropdownMenu>
+                              <AlertDialogContent>
+                                  <AlertDialogHeader>
+                                    <AlertDialogTitle>Are you absolutely sure?</AlertDialogTitle>
+                                    <AlertDialogDescription>
+                                      This action cannot be undone. This will permanently delete the draw
+                                      "{draw.name}". You can only delete draws with no purchased tickets.
+                                    </AlertDialogDescription>
+                                  </AlertDialogHeader>
+                                  <AlertDialogFooter>
+                                    <AlertDialogCancel disabled={isDeleting}>Cancel</AlertDialogCancel>
+                                    <AlertDialogAction
+                                      onClick={() => handleDelete(draw.id)}
+                                      disabled={isDeleting}
+                                      className="bg-destructive hover:bg-destructive/90 text-destructive-foreground"
+                                    >
+                                      {isDeleting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                                      Yes, delete it
+                                    </AlertDialogAction>
+                                  </AlertDialogFooter>
+                                </AlertDialogContent>
+                            </AlertDialog>
+                           </div>
                         </TableCell>
                     </TableRow>
                     );
