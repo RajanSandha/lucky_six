@@ -62,7 +62,7 @@ function AwaitingCeremonyDisplay({ draw, allTickets }: { draw: Draw, allTickets:
                             <CardTitle>Ticket Pool ({allTickets.length})</CardTitle>
                             <CardDescription>All tickets participating in this draw.</CardDescription>
                         </CardHeader>
-                        <CardContent className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-6 lg:grid-cols-8 gap-2">
+                        <CardContent className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-6 lg:grid-cols-8 gap-4">
                             {allTickets.map(ticket => (
                                 <TicketCard
                                     key={ticket.id}
@@ -72,7 +72,7 @@ function AwaitingCeremonyDisplay({ draw, allTickets }: { draw: Draw, allTickets:
                         </CardContent>
                     </Card>
                  </main>
-                 <aside>
+                 <aside className="hidden lg:block">
                     <Card className="sticky top-24 text-center p-6 bg-primary/10 border-primary/20 h-full flex flex-col justify-center items-center">
                         <Star className="h-16 w-16 text-primary animate-pulse mb-4"/>
                         <p className="text-xl font-semibold font-headline text-primary-foreground transition-all duration-500">
@@ -241,7 +241,7 @@ function AnnounceWinnerComponent({ initialDraw, allTickets }: { initialDraw: Dra
               <CardTitle className="font-headline text-blue-600">Selected This Round ({announcedInStage.length} / {stageConfig.count || 0})</CardTitle>
               <CardDescription>These tickets have advanced from the current stage.</CardDescription>
           </CardHeader>
-          <CardContent className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-5 gap-2">
+          <CardContent className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-5 gap-4">
              {announcedInStage.map(ticket => (
                 <TicketCard key={`revealed-${ticket.id}`} ticket={ticket} isSelected={true}/>
              ))}
@@ -254,7 +254,7 @@ function AnnounceWinnerComponent({ initialDraw, allTickets }: { initialDraw: Dra
                 <CardTitle>Ticket Pool ({allTickets.length})</CardTitle>
                 <CardDescription>All tickets participating in this draw.</CardDescription>
             </CardHeader>
-            <CardContent className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-6 lg:grid-cols-8 gap-2">
+            <CardContent className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-6 lg:grid-cols-8 gap-4">
                 {allTickets.map(ticket => {
                     const isAnnounced = Object.values(draw.announcedWinners || {}).flat().includes(ticket.id);
                     const allRoundWinners = Object.values(draw.roundWinners || {}).flat();
@@ -297,7 +297,7 @@ const AnnounceWinnerWithData = ({ params }: { params: { id: string } }) => {
                 const ticketsRef = collection(db, 'tickets');
                 const ticketsQuery = query(ticketsRef, where('drawId', '==', params.id));
                 const ticketsSnapshot = await getDocs(ticketsQuery);
-                const allTicketsData = await Promise.all(ticketsSnapshot.docs.map(async docSnapshot => {
+                const allTicketsData = await Promise.all(ticketsSnapshot.docs.map(async (docSnapshot) => {
                     const ticketData = { id: docSnapshot.id, ...docSnapshot.data() } as Ticket;
                     let user: User | null = null;
                     if (ticketData.userId) {
@@ -335,5 +335,3 @@ const AnnounceWinnerWithData = ({ params }: { params: { id: string } }) => {
 };
 
 export const AnnounceWinner = withAdminAuth(AnnounceWinnerWithData);
-
-    
