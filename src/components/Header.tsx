@@ -1,7 +1,8 @@
+
 "use client";
 
 import Link from "next/link";
-import { Ticket, Menu, X, LogOut, Megaphone, Gift } from "lucide-react";
+import { Ticket, Menu, X, LogOut, Megaphone, Gift, Shield } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
   Sheet,
@@ -23,14 +24,13 @@ export default function Header() {
   const navItems = [
     { href: "/draws", label: "Draws", public: true },
     { href: "/results", label: "Results", public: true },
+    { href: "/announcements", label: "Announcements", public: true },
+    { href: "/fraud-detection", label: "Fraud Detection", public: true },
     { href: "/admin/draws", label: "Draws Management", admin: true },
-    { href: "/admin/announcements", label: "Announcements", admin: true },
-    { href: "/admin/fraud-detection", label: "Fraud Detection", admin: true },
   ];
 
   const visibleNavItems = navItems.filter(item => {
       if (item.admin) return user?.isAdmin;
-      if (item.loggedIn) return !!user;
       return item.public;
   });
 

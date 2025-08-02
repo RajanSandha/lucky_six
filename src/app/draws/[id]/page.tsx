@@ -10,7 +10,7 @@ import { Ticket, Dices, CreditCard, PartyPopper, ArrowLeft, Search, RefreshCw, C
 import { TicketDisplay } from '@/components/TicketDisplay';
 import { useToast } from '@/hooks/use-toast';
 import Link from 'next/link';
-import { doc, getDoc, collection, getDocs, query, where } from 'firebase/firestore';
+import { doc, getDoc, collection, getDocs, query, where, Timestamp } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 import type { Draw, Ticket as TicketType } from '@/lib/types';
 import { Loader2 } from 'lucide-react';
@@ -79,6 +79,7 @@ function ReferralDialog({ open, onOpenChange, referralLink }: { open: boolean, o
 
 export default function DrawDetailPage() {
   const [draw, setDraw] = useState<Draw | null>(null);
+  const [userTickets, setUserTickets] = useState<TicketType[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isBuying, setIsBuying] = useState(false);
   const [ticketNumbers, setTicketNumbers] = useState<string[]>(Array(6).fill(''));
@@ -115,7 +116,20 @@ export default function DrawDetailPage() {
         const ticketsRef = collection(db, 'tickets');
         const q = query(ticketsRef, where('drawId', '==', id));
         const ticketSnapshot = await getDocs(q);
-        const ticketNumbersSet = new Set(ticketSnapshot.docs.map(doc => doc.data().numbers as string));
+        const ticketNumbersSet = new Set<string>();
+        const allTickets: TicketType[] = [];
+
+        ticketSnapshot.forEach(doc => {
+            const data = doc.data();
+            ticketNumbersSet.add(data.numbers);
+            allTickets.push({ id: doc.id, ...data, purchaseDate: (data.purchaseDate as Timestamp).toDate() } as TicketType);
+        });
+
+        if (user) {
+            const currentUserTickets = allTickets.filter(t => t.userId === user.id);
+            setUserTickets(currentUserTickets);
+        }
+        
         setExistingTicketNumbers(ticketNumbersSet);
         
         const generateUniqueTicket = () => {
@@ -137,7 +151,7 @@ export default function DrawDetailPage() {
   useEffect(() => {
     if (!id) return;
     fetchDrawAndTickets();
-  }, [id]);
+  }, [id, user]);
 
   useEffect(() => {
     const hasInput = ticketNumbers.some(n => n !== '');
@@ -353,6 +367,18 @@ export default function DrawDetailPage() {
                   </h3>
                   {statusInfo.countdownDate && <Countdown endDate={statusInfo.countdownDate} />}
               </div>
+          )}
+           {userTickets.length > 0 && (
+            <div className="mb-6">
+              <h3 className="font-semibold mb-2 text-center font-headline">Your Tickets for this Draw</h3>
+              <div className="flex flex-wrap justify-center gap-4 p-4 rounded-md bg-muted/50">
+                {userTickets.map(ticket => (
+                  <div key={ticket.id} className="p-2 border rounded-md bg-background shadow-sm">
+                    <p className="font-mono tracking-widest text-primary font-bold">{ticket.numbers}</p>
+                  </div>
+                ))}
+              </div>
+            </div>
           )}
           <div className="text-center space-y-6">
             <div>
