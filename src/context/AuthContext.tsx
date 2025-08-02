@@ -177,7 +177,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
         const fullUser = { ...newUser, isAdmin: newUser.role === 'admin' };
         setUser(fullUser);
-localStorage.setItem('lucky-six-user', JSON.stringify(fullUser));
+        localStorage.setItem('lucky-six-user', JSON.stringify(fullUser));
 
         return { success: true, message: referralMessage };
 

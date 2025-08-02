@@ -18,6 +18,7 @@ import { Label } from "@/components/ui/label";
 import { useToast } from '@/hooks/use-toast';
 import { ArrowRight, LogIn } from 'lucide-react';
 import { useAuth } from '@/context/AuthContext';
+import { checkUserExists } from './actions';
 
 
 export default function RegisterPage() {
@@ -44,8 +45,20 @@ export default function RegisterPage() {
   }, [searchParams]);
 
 
-  const handleSendOtp = (e: React.FormEvent) => {
+  const handleSendOtp = async (e: React.FormEvent) => {
     e.preventDefault();
+    
+    // Check if user exists before sending OTP
+    const userExists = await checkUserExists(phone);
+    if (userExists) {
+        toast({
+            title: "User Already Exists",
+            description: "A user with this phone number is already registered. Please log in.",
+            variant: "destructive",
+        });
+        return;
+    }
+    
     // In a real app, this would use Firebase to send an OTP
     toast({
         title: "OTP Sent!",
@@ -116,10 +129,6 @@ export default function RegisterPage() {
               <div className="space-y-2">
                 <Label htmlFor="phone">Phone Number</Label>
                 <Input id="phone" type="tel" placeholder="+91 98765 43210" value={phone} onChange={e => setPhone(e.target.value)} required />
-              </div>
-               <div className="space-y-2">
-                <Label htmlFor="referral">Referral Code (from link)</Label>
-                <Input id="referral" type="text" placeholder="Auto-filled from referral link" value={referralCode} onChange={e => setReferralCode(e.target.value)} disabled={!!searchParams.get('ref')} />
               </div>
             </CardContent>
             <CardFooter className="flex flex-col gap-4">
