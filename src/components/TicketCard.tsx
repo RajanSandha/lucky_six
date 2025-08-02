@@ -1,4 +1,5 @@
 
+
 "use client";
 
 import type { Ticket, User } from '@/lib/types';
@@ -41,7 +42,7 @@ export function TicketCard({
                 {numbers.map((num, index) => (
                    <div
                         key={index}
-                        className="w-5 h-6 sm:w-6 sm:h-8 text-sm md:text-lg flex items-center justify-center font-bold rounded-md border bg-primary/10 text-primary"
+                        className={cn("w-5 h-6 sm:w-6 sm:h-8 text-sm md:text-lg flex items-center justify-center font-bold rounded-md border text-primary", isSelected ? "bg-blue-500/10 border-blue-500" : "bg-primary/10 border-primary/20")}
                     >
                         {num}
                     </div>

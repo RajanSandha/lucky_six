@@ -16,6 +16,7 @@ import { doc, onSnapshot, collection, query, where, getDocs, getDoc, limit } fro
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from './ui/accordion';
 import { useAuth } from '@/context/AuthContext';
 import { cn } from '@/lib/utils';
+import { NumberRoller } from './NumberRoller';
 
 
 const STAGE_CONFIG = {
@@ -277,7 +278,7 @@ function AnnounceWinnerComponent({ initialDraw, allTickets }: { initialDraw: Dra
             </Card>
         )}
 
-      <Card className="lg:col-span-2 bg-blue-500/5 border-blue-500/20 mb-6">
+      <Card className="lg:col-span-2 bg-blue-500/5 border-blue-500/20 mb-6 sticky top-20 z-10">
           <CardHeader>
               <CardTitle className="font-headline text-blue-600">Selected This Round ({announcedInStage.length} / {stageConfig.count || 0})</CardTitle>
               <CardDescription>These tickets have advanced from the current stage.</CardDescription>
@@ -286,7 +287,16 @@ function AnnounceWinnerComponent({ initialDraw, allTickets }: { initialDraw: Dra
              {announcedInStage.map(ticket => (
                 <TicketCard key={`revealed-${ticket.id}`} ticket={ticket} isSelected={true}/>
              ))}
-             {!roundIsComplete && <div className="p-4 flex items-center justify-center"><Loader2 className="h-8 w-8 animate-spin text-primary" /></div>}
+             {!roundIsComplete && (
+                 <div className="p-2 md:p-4 rounded-lg border-2 bg-card shadow-sm border-accent animate-pulse">
+                     <div className="flex justify-center gap-1 mb-2">
+                        {Array.from({length: 6}).map((_, index) => (
+                           <NumberRoller key={index} finalNumber={'0'} isRolling={true} />
+                        ))}
+                    </div>
+                     <div className="flex items-center justify-center gap-1 text-xs text-muted-foreground h-4 bg-muted/50 rounded-full animate-pulse w-3/4 mx-auto"/>
+                 </div>
+             )}
           </CardContent>
       </Card>
        
@@ -378,4 +388,5 @@ export const AnnounceWinner = ({ params }: { params: { id: string } }) => {
 };
 
     
+
 

@@ -31,7 +31,8 @@ export const NumberRoller = ({ finalNumber, isRolling, className }: NumberRoller
   return (
     <div
       className={cn(
-        "w-12 h-16 flex items-center justify-center text-3xl font-bold rounded-md border-2 border-gray-600 bg-gray-800 text-white transition-all duration-300 shadow-inner",
+        "w-6 h-8 sm:w-8 sm:h-10 text-lg md:text-xl flex items-center justify-center font-bold rounded-md border-2 bg-gray-800 text-white transition-all duration-300 shadow-inner",
+        isRolling && "border-primary/50 bg-primary/20 text-primary",
         !isRolling && "bg-accent text-accent-foreground border-accent-foreground",
         className
       )}
