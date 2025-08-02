@@ -5,11 +5,9 @@
 import { useState, useEffect } from 'react';
 import type { Draw, Ticket, User } from '@/lib/types';
 import { TicketCard } from './TicketCard';
-import { getDraw } from '@/app/admin/draws/actions';
-import { useToast } from '@/hooks/use-toast';
-import { Loader2, Crown, CheckCircle, Star, MoreHorizontal } from 'lucide-react';
 import { useWindowSize } from 'react-use';
 import Confetti from 'react-confetti';
+import { Loader2, Crown, CheckCircle, Star, MoreHorizontal } from 'lucide-react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from './ui/card';
 import { db } from '@/lib/firebase';
 import { doc, onSnapshot, collection, query, where, getDocs, getDoc, limit } from 'firebase/firestore';
@@ -29,6 +27,7 @@ const STAGE_CONFIG = {
 type FullTicket = Ticket & { user: User | null };
 
 const getTicketsByIds = (ids: string[], allTickets: FullTicket[]): FullTicket[] => {
+    if (!ids || !allTickets) return [];
     return ids.map(id => allTickets.find(t => t.id === id)).filter(Boolean) as FullTicket[];
 }
 
@@ -218,6 +217,7 @@ export const AnnounceWinner = ({ params }: { params: { id: string } }) => {
         if (!doc.exists()) {
             setError("Draw not found.");
             setDraw(null);
+            setLoading(false); // Stop loading if draw not found
             return;
         };
         const data = doc.data() as any;
@@ -233,11 +233,12 @@ export const AnnounceWinner = ({ params }: { params: { id: string } }) => {
 
     const fetchTickets = async () => {
         try {
-            const drawData = await getDraw(params.id);
-            if (!drawData) {
+            const drawDataSnap = await getDoc(doc(db, 'draws', params.id));
+            if (!drawDataSnap.exists()) {
               setLoading(false);
               return;
             }
+             const drawData = drawDataSnap.data();
              const isUpcoming = drawData.status !== 'announcing' && drawData.status !== 'finished';
              const ticketsQuery = isUpcoming 
                     ? query(collection(db, 'tickets'), where('drawId', '==', params.id), limit(51))
@@ -267,6 +268,36 @@ export const AnnounceWinner = ({ params }: { params: { id: string } }) => {
     return () => unsub();
   }, [params.id]);
 
+  const currentStage = !draw ? 0 : (() => {
+    if (!draw.announcedWinners) return 1;
+    if (draw.announcedWinners[1]?.length < STAGE_CONFIG[1].count) return 1;
+    if (draw.announcedWinners[2]?.length < STAGE_CONFIG[2].count) return 2;
+    if (draw.announcedWinners[3]?.length < STAGE_CONFIG[3].count) return 3;
+    if (draw.announcedWinners[4]?.length < STAGE_CONFIG[4].count) return 4;
+    return 5; // Ceremony finished
+  })();
+  
+  const stageConfig = currentStage > 0 && currentStage < 5 ? STAGE_CONFIG[currentStage as keyof typeof STAGE_CONFIG] : null;
+  const announcedInStage = getTicketsByIds(draw?.announcedWinners?.[currentStage] || [], allTickets || []);
+  const roundIsComplete = !!stageConfig && announcedInStage.length === stageConfig.count;
+  const nextWinnerToAnnounceId = draw?.roundWinners?.[currentStage]?.find(id => !draw.announcedWinners?.[currentStage].includes(id));
+  const nextWinnerToAnnounce = allTickets?.find(t => t.id === nextWinnerToAnnounceId);
+  const userTickets = allTickets?.filter(t => t.userId === user?.id) || [];
+
+  // Left-to-right reveal animation effect
+  useEffect(() => {
+    setRevealedDigits(0); // Reset on new winner
+    if (nextWinnerToAnnounce && !roundIsComplete) {
+      const timers = Array.from({ length: 6 }).map((_, i) =>
+        setTimeout(() => {
+          setRevealedDigits(prev => prev + 1);
+        }, (i + 1) * 800) // Reveal one digit every 800ms
+      );
+      return () => timers.forEach(clearTimeout);
+    }
+  }, [nextWinnerToAnnounce, roundIsComplete]);
+
+  // All hooks are called above this line. Now we can do conditional returns.
 
   if (loading) {
     return <div className="flex h-screen items-center justify-center"><Loader2 className="h-16 w-16 animate-spin text-primary" /></div>;
@@ -277,17 +308,6 @@ export const AnnounceWinner = ({ params }: { params: { id: string } }) => {
   if (!draw || !allTickets) {
       return <div className="container mx-auto py-12 px-4 text-center">Draw data is not available.</div>;
   }
-
-  const getCurrentStage = () => {
-    if (!draw.announcedWinners) return 1;
-    if (draw.announcedWinners[1]?.length < STAGE_CONFIG[1].count) return 1;
-    if (draw.announcedWinners[2]?.length < STAGE_CONFIG[2].count) return 2;
-    if (draw.announcedWinners[3]?.length < STAGE_CONFIG[3].count) return 3;
-    if (draw.announcedWinners[4]?.length < STAGE_CONFIG[4].count) return 4;
-    return 5; // Ceremony finished
-  }
-
-  const currentStage = getCurrentStage();
 
   if (currentStage === 5) {
       if (draw.status !== 'finished') {
@@ -309,34 +329,15 @@ export const AnnounceWinner = ({ params }: { params: { id: string } }) => {
       return <FinishedDrawDisplay draw={draw} allTickets={allTickets} />
   }
 
-  // This handles the "awaiting" state before the ceremony starts.
   if (draw.status !== 'announcing' || !draw.roundWinners) {
      const hasMoreTickets = allTickets.length > 50;
      const displayedTickets = allTickets.slice(0, 50);
     return <AwaitingCeremonyDisplay draw={draw} tickets={displayedTickets} hasMoreTickets={hasMoreTickets}/>
   }
     
-  const stageConfig = STAGE_CONFIG[currentStage as keyof typeof STAGE_CONFIG];
-  const announcedInStage = getTicketsByIds(draw.announcedWinners?.[currentStage] || [], allTickets);
-  const roundIsComplete = announcedInStage.length === stageConfig.count;
-  const nextWinnerToAnnounceId = draw.roundWinners?.[currentStage]?.find(id => !draw.announcedWinners?.[currentStage].includes(id));
-  const nextWinnerToAnnounce = allTickets.find(t => t.id === nextWinnerToAnnounceId);
-
-  // Left-to-right reveal animation effect
-  useEffect(() => {
-    setRevealedDigits(0); // Reset on new winner
-    if (nextWinnerToAnnounce && !roundIsComplete) {
-      const timers = Array.from({ length: 6 }).map((_, i) =>
-        setTimeout(() => {
-          setRevealedDigits(prev => prev + 1);
-        }, (i + 1) * 800) // Reveal one digit every 800ms
-      );
-      return () => timers.forEach(clearTimeout);
-    }
-  }, [nextWinnerToAnnounce, roundIsComplete]);
-
-  // Filter for the logged-in user's tickets for the bottom pool view
-  const userTickets = allTickets.filter(t => t.userId === user?.id);
+  if (!stageConfig) {
+      return <div className="container mx-auto py-12 px-4 text-center">Invalid ceremony stage.</div>;
+  }
 
   const SlotMachine = () => (
      <Card className="p-4 rounded-lg border-2 bg-card shadow-lg border-primary/20 flex flex-col items-center justify-center text-center">
