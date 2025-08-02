@@ -82,7 +82,7 @@ function AwaitingCeremonyDisplay({ draw }: { draw: Draw }) {
                                 <div
                                     key={msg}
                                     className={cn(
-                                        "absolute w-full text-center text-lg font-semibold text-muted-foreground transition-all duration-500",
+                                        "absolute w-full text-center text-xl font-semibold text-muted-foreground transition-all duration-500",
                                         index === messageIndex ? 'opacity-100 translate-y-0' : 'opacity-0 -translate-y-full'
                                     )}
                                 >
@@ -478,27 +478,35 @@ export function AnnounceWinner({ params }: { params: { id: string } }) {
                             let isEliminated = false;
                             let roundReached = 0;
                             
-                            // Determine if the round the ticket *could have* won in is already complete.
-                            if (draw.roundWinners) {
-                                for(let i=4; i >= 1; i--) {
-                                    if(draw.roundWinners[i]?.includes(ticket.id)) {
+                            // Determine the highest round the ticket has been announced in.
+                            if (draw.announcedWinners) {
+                                for (let i = 4; i >= 1; i--) {
+                                    if (draw.announcedWinners[i]?.includes(ticket.id)) {
                                         roundReached = i;
                                         break;
                                     }
                                 }
                             }
                             
+                            // Determine if the ticket is eliminated.
                             if (roundReached === 0) {
-                                // If not a winner in any round, check if it was eliminated
                                 let eliminated = false;
-                                for(let i=1; i < 5; i++) {
-                                     const allWinnersForStage = draw.roundWinners?.[i] || [];
-                                     const announcedInStage = draw.announcedWinners?.[i] || [];
+                                for (let i = 1; i < 5; i++) {
+                                     // Check if the current stage is fully announced
                                      const stageConf = STAGE_CONFIG[i as keyof typeof STAGE_CONFIG];
-                                     if (announcedInStage.length === stageConf?.count && !allWinnersForStage.includes(ticket.id)) {
-                                         eliminated = true;
-                                         break;
-                                    }
+                                     const announcedInStage = draw.announcedWinners?.[i] || [];
+                                     const allWinnersInStage = draw.roundWinners?.[i] || [];
+
+                                     if (announcedInStage.length === stageConf?.count) {
+                                         // If the round is complete and the ticket is not in it, it's eliminated.
+                                         if (!allWinnersInStage.includes(ticket.id)) {
+                                            eliminated = true;
+                                            break;
+                                         }
+                                     } else {
+                                        // If a round is not yet complete, we can't determine elimination yet.
+                                        break;
+                                     }
                                 }
                                 isEliminated = eliminated;
                             }
