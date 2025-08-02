@@ -224,7 +224,7 @@ function AnnounceWinnerComponent({ params }: { params: { id: string } }) {
                     return { ...ticketData, user: userData, purchaseDate: ticketData.purchaseDate };
                 }));
                 setAllTickets(allTicketsData);
-            } catch (e: any) => {
+            } catch (e: any) {
                 setError(`Failed to load ticket data: ${e.message}`);
             } finally {
                  setLoading(false);
@@ -480,5 +480,3 @@ function AnnounceWinnerComponent({ params }: { params: { id: string } }) {
 export const AnnounceWinner = ({ params }: { params: { id: string } }) => {
     return <AnnounceWinnerComponent params={params} />;
 };
-
-    
