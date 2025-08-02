@@ -238,7 +238,7 @@ function GrandFinale({ finalists, winner, onComplete }: { finalists: FullTicket[
     )
 }
 
-function AnnounceWinner({ params }: { params: { id: string } }) {
+export function AnnounceWinner({ params }: { params: { id: string } }) {
     // Data states
     const [draw, setDraw] = useState<Draw | null>(null);
     const [allTickets, setAllTickets] = useState<FullTicket[]>([]);
@@ -538,4 +538,3 @@ function AnnounceWinner({ params }: { params: { id: string } }) {
         </div>
     );
 };
-
