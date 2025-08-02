@@ -68,7 +68,7 @@ function AwaitingCeremonyDisplay({ draw, tickets, hasMoreTickets }: { draw: Draw
             <div className="block lg:hidden mb-6">
                  <Card className="text-center p-6 bg-primary/10 border-primary/20 flex flex-col justify-center items-center h-48">
                     <Star className="h-16 w-16 text-primary animate-pulse mb-4"/>
-                    <p className={cn("text-xl font-semibold font-headline text-primary transition-opacity duration-500", isFading ? "opacity-0" : "opacity-100")}>
+                     <p className={cn("text-xl font-semibold font-headline text-primary transition-opacity duration-500", isFading ? "opacity-0" : "opacity-100")}>
                         {positiveMessages[messageIndex]}
                     </p>
                 </Card>
@@ -198,20 +198,29 @@ const SlotMachineGraphic = () => (
     </div>
 );
 
-
-function AnnounceWinnerComponent({ initialDraw, allTickets }: { initialDraw: Draw; allTickets: FullTicket[] }) {
-  const [draw, setDraw] = useState(initialDraw);
+export const AnnounceWinner = ({ params }: { params: { id: string } }) => {
+  const [draw, setDraw] = useState<Draw | null>(null);
+  const [allTickets, setAllTickets] = useState<FullTicket[] | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
   const [revealedDigits, setRevealedDigits] = useState<number>(0);
   const { width, height } = useWindowSize();
   const { user } = useAuth();
-  
-  // Real-time listener for draw updates
+
   useEffect(() => {
-    if (!draw.id) return;
-    const unsub = onSnapshot(doc(db, "draws", draw.id), (doc) => {
-        if (!doc.exists()) return;
+    if (!params.id) {
+        setError("No draw ID provided.");
+        setLoading(false);
+        return;
+    }
+
+    const unsub = onSnapshot(doc(db, "draws", params.id), (doc) => {
+        if (!doc.exists()) {
+            setError("Draw not found.");
+            setDraw(null);
+            return;
+        };
         const data = doc.data() as any;
-        
         const newDrawData: Draw = {
             ...data,
             id: doc.id,
@@ -221,9 +230,53 @@ function AnnounceWinnerComponent({ initialDraw, allTickets }: { initialDraw: Dra
         };
         setDraw(newDrawData);
     });
-    return () => unsub();
-  }, [draw.id]);
 
+    const fetchTickets = async () => {
+        try {
+            const drawData = await getDraw(params.id);
+            if (!drawData) {
+              setLoading(false);
+              return;
+            }
+             const isUpcoming = drawData.status !== 'announcing' && drawData.status !== 'finished';
+             const ticketsQuery = isUpcoming 
+                    ? query(collection(db, 'tickets'), where('drawId', '==', params.id), limit(51))
+                    : query(collection(db, 'tickets'), where('drawId', '==', params.id));
+
+            const ticketsSnapshot = await getDocs(ticketsQuery);
+            const allTicketsData = await Promise.all(ticketsSnapshot.docs.map(async (docSnapshot) => {
+                const ticketData = { id: docSnapshot.id, ...docSnapshot.data() } as Ticket;
+                let user: User | null = null;
+                if (ticketData.userId) {
+                    const userRef = doc(db, 'users', ticketData.userId);
+                    const userSnap = await getDoc(userRef);
+                    user = userSnap.exists() ? { id: userSnap.id, ...userSnap.data() } as User : null;
+                }
+                return { ...ticketData, user, purchaseDate: ticketData.purchaseDate };
+            }));
+            setAllTickets(allTicketsData);
+        } catch(e: any) {
+            setError(`Failed to load tickets: ${e.message}`);
+        } finally {
+            setLoading(false);
+        }
+    };
+    
+    fetchTickets();
+    
+    return () => unsub();
+  }, [params.id]);
+
+
+  if (loading) {
+    return <div className="flex h-screen items-center justify-center"><Loader2 className="h-16 w-16 animate-spin text-primary" /></div>;
+  }
+  if (error) {
+    return <div className="container mx-auto py-12 px-4 text-center text-destructive">{error}</div>;
+  }
+  if (!draw || !allTickets) {
+      return <div className="container mx-auto py-12 px-4 text-center">Draw data is not available.</div>;
+  }
 
   const getCurrentStage = () => {
     if (!draw.announcedWinners) return 1;
@@ -236,9 +289,8 @@ function AnnounceWinnerComponent({ initialDraw, allTickets }: { initialDraw: Dra
 
   const currentStage = getCurrentStage();
 
-  if (draw.status === 'finished' || currentStage === 5) {
+  if (currentStage === 5) {
       if (draw.status !== 'finished') {
-          // This handles when the ceremony is finished (currentStage = 5) but status is not yet 'finished'
           return (
             <div className="flex h-screen items-center justify-center">
                 <Confetti width={width} height={height} recycle={false} numberOfPieces={500} />
@@ -382,70 +434,3 @@ function AnnounceWinnerComponent({ initialDraw, allTickets }: { initialDraw: Dra
     </div>
   );
 }
-
-export const AnnounceWinner = ({ params }: { params: { id: string } }) => {
-    const [draw, setDraw] = useState<Draw | null>(null);
-    const [tickets, setTickets] = useState<FullTicket[] | null>(null);
-    const [loading, setLoading] = useState(true);
-    const [error, setError] = useState<string | null>(null);
-
-    useEffect(() => {
-        const fetchInitialData = async () => {
-            try {
-                const drawData = await getDraw(params.id);
-                if (!drawData) {
-                    setError("Draw not found.");
-                    setLoading(false);
-                    return;
-                }
-                setDraw(drawData);
-
-                const isUpcoming = drawData.status !== 'announcing' && drawData.status !== 'finished';
-                const ticketsQuery = isUpcoming 
-                    ? query(collection(db, 'tickets'), where('drawId', '==', params.id), limit(51))
-                    : query(collection(db, 'tickets'), where('drawId', '==', params.id));
-
-                const ticketsSnapshot = await getDocs(ticketsQuery);
-                const allTicketsData = await Promise.all(ticketsSnapshot.docs.map(async (docSnapshot) => {
-                    const ticketData = { id: docSnapshot.id, ...docSnapshot.data() } as Ticket;
-                    let user: User | null = null;
-                    if (ticketData.userId) {
-                        const userRef = doc(db, 'users', ticketData.userId);
-                        const userSnap = await getDoc(userRef);
-                        user = userSnap.exists() ? { id: userSnap.id, ...userSnap.data() } as User : null;
-                    }
-                    return { ...ticketData, user, purchaseDate: ticketData.purchaseDate };
-                }));
-                setTickets(allTicketsData);
-
-            } catch (e: any) {
-                setError(`Failed to load data: ${e.message}`);
-                console.error(e);
-            } finally {
-                setLoading(false);
-            }
-        };
-        fetchInitialData();
-    }, [params.id]);
-
-    if (loading) {
-        return <div className="flex h-screen items-center justify-center"><Loader2 className="h-16 w-16 animate-spin text-primary" /></div>;
-    }
-
-    if (error) {
-        return <div className="container mx-auto py-12 px-4 text-center text-destructive">{error}</div>;
-    }
-    
-    if (!draw || !tickets) {
-        return <div className="container mx-auto py-12 px-4 text-center">Draw or ticket data is missing.</div>;
-    }
-
-    return <AnnounceWinnerComponent initialDraw={draw} allTickets={tickets} />;
-};
-
-    
-
-
-
-
-
