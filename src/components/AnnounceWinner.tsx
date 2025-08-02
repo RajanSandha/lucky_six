@@ -235,11 +235,39 @@ function AnnounceWinnerComponent({ initialDraw, allTickets }: { initialDraw: Dra
   }
 
   const currentStage = getCurrentStage();
+
+  if (draw.status === 'finished' || currentStage === 5) {
+      if (draw.status !== 'finished') {
+          // This handles when the ceremony is finished (currentStage = 5) but status is not yet 'finished'
+          return (
+            <div className="flex h-screen items-center justify-center">
+                <Confetti width={width} height={height} recycle={false} numberOfPieces={500} />
+                <Card className="text-center p-8">
+                    <CardHeader>
+                         <div className="mx-auto bg-green-100 dark:bg-green-900/50 p-4 rounded-full w-fit">
+                            <CheckCircle className="h-12 w-12 text-green-600"/>
+                        </div>
+                        <CardTitle className="text-2xl mt-4">Ceremony Complete!</CardTitle>
+                        <CardDescription>All winners have been announced.</CardDescription>
+                    </CardHeader>
+                </Card>
+            </div>
+          )
+      }
+      return <FinishedDrawDisplay draw={draw} allTickets={allTickets} />
+  }
+
+  // This handles the "awaiting" state before the ceremony starts.
+  if (draw.status !== 'announcing' || !draw.roundWinners) {
+     const hasMoreTickets = allTickets.length > 50;
+     const displayedTickets = allTickets.slice(0, 50);
+    return <AwaitingCeremonyDisplay draw={draw} tickets={displayedTickets} hasMoreTickets={hasMoreTickets}/>
+  }
+    
   const stageConfig = STAGE_CONFIG[currentStage as keyof typeof STAGE_CONFIG];
-  
   const announcedInStage = getTicketsByIds(draw.announcedWinners?.[currentStage] || [], allTickets);
   const roundIsComplete = announcedInStage.length === stageConfig.count;
-  const nextWinnerToAnnounceId = draw.roundWinners?.[currentStage].find(id => !draw.announcedWinners?.[currentStage].includes(id));
+  const nextWinnerToAnnounceId = draw.roundWinners?.[currentStage]?.find(id => !draw.announcedWinners?.[currentStage].includes(id));
   const nextWinnerToAnnounce = allTickets.find(t => t.id === nextWinnerToAnnounceId);
 
   // Left-to-right reveal animation effect
@@ -254,36 +282,6 @@ function AnnounceWinnerComponent({ initialDraw, allTickets }: { initialDraw: Dra
       return () => timers.forEach(clearTimeout);
     }
   }, [nextWinnerToAnnounce, roundIsComplete]);
-
-  
-  if (draw.status === 'finished') {
-      return <FinishedDrawDisplay draw={draw} allTickets={allTickets} />
-  }
-
-  // This handles the "awaiting" state before the ceremony starts.
-  if (draw.status !== 'announcing' || !draw.roundWinners) {
-     const hasMoreTickets = allTickets.length > 50;
-     const displayedTickets = allTickets.slice(0, 50);
-    return <AwaitingCeremonyDisplay draw={draw} tickets={displayedTickets} hasMoreTickets={hasMoreTickets}/>
-  }
-    
-  if (!stageConfig) {
-      // This case handles when the ceremony is finished (currentStage = 5) but status is not yet 'finished'
-      return (
-        <div className="flex h-screen items-center justify-center">
-            <Confetti width={width} height={height} recycle={false} numberOfPieces={500} />
-            <Card className="text-center p-8">
-                <CardHeader>
-                     <div className="mx-auto bg-green-100 dark:bg-green-900/50 p-4 rounded-full w-fit">
-                        <CheckCircle className="h-12 w-12 text-green-600"/>
-                    </div>
-                    <CardTitle className="text-2xl mt-4">Ceremony Complete!</CardTitle>
-                    <CardDescription>All winners have been announced.</CardDescription>
-                </CardHeader>
-            </Card>
-        </div>
-      )
-  }
 
   // Filter for the logged-in user's tickets for the bottom pool view
   const userTickets = allTickets.filter(t => t.userId === user?.id);
@@ -446,6 +444,7 @@ export const AnnounceWinner = ({ params }: { params: { id: string } }) => {
 };
 
     
+
 
 
 
