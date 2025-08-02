@@ -73,8 +73,8 @@ function AwaitingCeremonyDisplay({ draw }: { draw: Draw }) {
                 <p className="text-muted-foreground mt-2">Winner selection starts on {new Date(draw.announcementDate).toLocaleString()}</p>
                  {user && <p className="text-lg font-semibold mt-4">Hang tight, {user.name}! The excitement is building.</p>}
             </div>
-             <div className="flex justify-center z-10">
-                 <Card className="w-full max-w-lg shadow-2xl bg-background/80 backdrop-blur-sm">
+             <div className="flex justify-center z-10 w-full">
+                 <Card className="w-full shadow-2xl bg-background/80 backdrop-blur-sm">
                     <CardContent className="text-center p-12 flex flex-col items-center gap-6">
                         <TicketIcon className="w-32 h-32 text-primary animate-pulse" style={{ animationDuration: '1.5s' }} />
                         <div className="relative h-8 w-full overflow-hidden">
