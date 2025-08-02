@@ -45,6 +45,7 @@ export async function createDraw(formData: FormData) {
     const endDate = formData.get('endDate') as string;
     let announcementDate = formData.get('announcementDate') as string;
     const imageFile = formData.get('image') as File | null;
+    const referralAvailable = formData.get('referralAvailable') === 'on';
     
     if (!name || !description || !prize || !ticketPrice || !startDate || !endDate) {
       return { success: false, message: 'Please fill out all required fields.' };
@@ -73,7 +74,8 @@ export async function createDraw(formData: FormData) {
       announcementDate: createUtcDate(announcementDate),
       imageUrl: imageUrl,
       createdAt: serverTimestamp(),
-      status: 'upcoming'
+      status: 'upcoming',
+      referralAvailable,
     };
 
     await addDoc(collection(db, "draws"), newDrawData);
@@ -106,6 +108,7 @@ export async function updateDraw(drawId: string, formData: FormData) {
         const endDate = formData.get('endDate') as string;
         let announcementDate = formData.get('announcementDate') as string;
         const imageFile = formData.get('image') as File | null;
+        const referralAvailable = formData.get('referralAvailable') === 'on';
 
         if (!name || !description || !prize || !ticketPrice || !startDate || !endDate || !announcementDate) {
             return { success: false, message: 'Please fill out all required fields.' };
@@ -119,6 +122,7 @@ export async function updateDraw(drawId: string, formData: FormData) {
             startDate: createUtcDate(startDate),
             endDate: createUtcDate(endDate),
             announcementDate: createUtcDate(announcementDate),
+            referralAvailable,
         };
 
         if (imageFile && imageFile.size > 0) {

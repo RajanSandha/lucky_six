@@ -19,6 +19,7 @@ import { useToast } from "@/hooks/use-toast";
 import { Loader2 } from "lucide-react";
 import type { Draw } from "@/lib/types";
 import { createDraw, updateDraw } from "@/app/admin/draws/actions";
+import { Switch } from "./ui/switch";
 
 interface DrawFormProps {
   open: boolean;
@@ -141,6 +142,10 @@ export function DrawForm({ open, onOpenChange, onSuccess, draw }: DrawFormProps)
                 <Label htmlFor="announcementDate">Announcement Date</Label>
                 <Input id="announcementDate" name="announcementDate" type="datetime-local" value={announcementDate} onChange={e => setAnnouncementDate(e.target.value)} required />
                 <p className="text-xs text-muted-foreground">Defaults to 2 hours after the end date.</p>
+              </div>
+              <div className="flex items-center space-x-2">
+                <Switch id="referralAvailable" name="referralAvailable" defaultChecked={draw?.referralAvailable} />
+                <Label htmlFor="referralAvailable">Referrals Enabled</Label>
               </div>
           </div>
           <DialogFooter>

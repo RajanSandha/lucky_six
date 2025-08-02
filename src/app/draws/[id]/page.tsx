@@ -2,11 +2,11 @@
 "use client";
 
 import { useState, useMemo, useEffect } from 'react';
-import { useParams, notFound } from 'next/navigation';
+import { useParams, notFound, useRouter } from 'next/navigation';
 import Image from 'next/image';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Ticket, Dices, CreditCard, PartyPopper, ArrowLeft, Search, RefreshCw, Clock } from 'lucide-react';
+import { Ticket, Dices, CreditCard, PartyPopper, ArrowLeft, Search, RefreshCw, Clock, Gift } from 'lucide-react';
 import { TicketDisplay } from '@/components/TicketDisplay';
 import { useToast } from '@/hooks/use-toast';
 import Link from 'next/link';
@@ -33,6 +33,7 @@ export default function DrawDetailPage() {
   const [existingTicketNumbers, setExistingTicketNumbers] = useState<Set<string>>(new Set());
   const { toast } = useToast();
   const { user } = useAuth();
+  const router = useRouter();
   
   const params = useParams();
   const id = params.id as string;
@@ -195,7 +196,7 @@ export default function DrawDetailPage() {
     // Simulate payment delay
     setTimeout(async () => {
       const finalTicketNumber = ticketNumbers.join('');
-      const result = await purchaseTicket(draw.id, user.id, finalTicketNumber);
+      const result = await purchaseTicket(draw.id, user.id, finalTicketNumber, false);
 
       if (result.success) {
         setLastPurchasedTicket(ticketNumbers);
@@ -218,6 +219,14 @@ export default function DrawDetailPage() {
       setIsBuying(false);
     }, 2000);
   };
+
+  const handleReferralClick = () => {
+      if (!user) {
+        toast({ title: "Not Logged In", description: "You must be logged in to use referrals.", variant: "destructive" });
+        return;
+    }
+    router.push('/account/referral');
+  }
   
   if (isLoading) {
     return <div className="container mx-auto py-12 px-4 flex justify-center items-center h-[calc(100vh-8rem)]"><Loader2 className="h-16 w-16 animate-spin text-primary" /></div>;
@@ -341,19 +350,31 @@ export default function DrawDetailPage() {
         </CardContent>
 
         <CardContent>
-          <Button 
-            onClick={handlePayment} 
-            disabled={!isTicketComplete || isBuying || !statusInfo.isActive} 
-            className="w-full bg-accent text-accent-foreground hover:bg-accent/90 font-bold"
-            size="lg"
-          >
-            {isBuying ? <Loader2 className="mr-2 h-5 w-5 animate-spin" /> : <CreditCard className="mr-2 h-5 w-5"/>}
-            {isBuying ? "Processing..." : `Pay ₹${draw.ticketPrice} with UPI`}
-          </Button>
+            <div className="flex flex-col sm:flex-row gap-4">
+                <Button 
+                    onClick={handlePayment} 
+                    disabled={!isTicketComplete || isBuying || !statusInfo.isActive} 
+                    className="w-full bg-accent text-accent-foreground hover:bg-accent/90 font-bold"
+                    size="lg"
+                >
+                    {isBuying ? <Loader2 className="mr-2 h-5 w-5 animate-spin" /> : <CreditCard className="mr-2 h-5 w-5"/>}
+                    {isBuying ? "Processing..." : `Pay ₹${draw.ticketPrice} with UPI`}
+                </Button>
+                {draw.referralAvailable && (
+                    <Button 
+                        onClick={handleReferralClick}
+                        disabled={isBuying || !statusInfo.isActive} 
+                        className="w-full bg-primary text-primary-foreground hover:bg-primary/90 font-bold"
+                        size="lg"
+                        variant="outline"
+                    >
+                        <Gift className="mr-2 h-5 w-5"/>
+                        Get with Referral
+                    </Button>
+                )}
+            </div>
         </CardContent>
       </Card>
     </div>
   );
 }
-
-    

@@ -6,6 +6,8 @@ export type User = {
   ticketIds: string[];
   isAdmin?: boolean;
   role?: string;
+  referralCode?: string;
+  referralsMade?: number;
 };
 
 export type Ticket = {
@@ -14,6 +16,7 @@ export type Ticket = {
   userId: string;
   numbers: string; // A six-digit string e.g., "123456"
   purchaseDate: Date;
+  isReferral?: boolean;
 };
 
 export type Draw = {
@@ -31,5 +34,6 @@ export type Draw = {
   status?: 'upcoming' | 'active' | 'awaiting_announcement' | 'announcing' | 'finished';
   roundWinners?: Record<number, string[]>; // Stores all winners for each round, selected at once.
   announcedWinners?: Record<number, string[]>; // Stores winners as they are announced dramatically.
+  referralAvailable?: boolean;
   [key: string]: any;
 };

@@ -1,8 +1,9 @@
+
 "use client";
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import Link from 'next/link';
-import { useRouter } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { Button } from "@/components/ui/button";
 import {
   Card,
@@ -24,9 +25,18 @@ export default function RegisterPage() {
   const [phone, setPhone] = useState('');
   const [name, setName] = useState('');
   const [otp, setOtp] = useState(Array(6).fill(''));
+  const [referralCode, setReferralCode] = useState('');
   const router = useRouter();
+  const searchParams = useSearchParams();
   const { toast } = useToast();
   const { register } = useAuth();
+
+  useEffect(() => {
+    const refCode = searchParams.get('ref');
+    if (refCode) {
+      setReferralCode(refCode);
+    }
+  }, [searchParams]);
 
 
   const handleSendOtp = (e: React.FormEvent) => {
@@ -42,17 +52,17 @@ export default function RegisterPage() {
   const handleVerifyOtp = async (e: React.FormEvent) => {
     e.preventDefault();
     if(otp.join('') === '123456') {
-        const success = await register(phone, name);
-        if (success) {
+        const result = await register(phone, name, referralCode);
+        if (result.success) {
             toast({
                 title: "Registration Successful!",
-                description: `Welcome to Lucky Six, ${name}!`
+                description: `Welcome to Lucky Six, ${name}! ${result.message || ''}`
             });
             router.push('/');
         } else {
             toast({
                 title: "Registration Failed",
-                description: "A user with this phone number already exists.",
+                description: result.message || "An unknown error occurred.",
                 variant: "destructive"
             });
         }
@@ -101,6 +111,10 @@ export default function RegisterPage() {
               <div className="space-y-2">
                 <Label htmlFor="phone">Phone Number</Label>
                 <Input id="phone" type="tel" placeholder="+91 98765 43210" value={phone} onChange={e => setPhone(e.target.value)} required />
+              </div>
+               <div className="space-y-2">
+                <Label htmlFor="referral">Referral Code (Optional)</Label>
+                <Input id="referral" type="text" placeholder="Enter referral code" value={referralCode} onChange={e => setReferralCode(e.target.value)} />
               </div>
             </CardContent>
             <CardFooter className="flex flex-col gap-4">
