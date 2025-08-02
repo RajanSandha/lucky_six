@@ -6,14 +6,16 @@ import type { Draw, Ticket, User } from '@/lib/types';
 import { TicketCard } from './TicketCard';
 import { getDraw } from '@/app/admin/draws/actions';
 import { useToast } from '@/hooks/use-toast';
-import { Loader2, Crown, Hourglass, CheckCircle, Award, Star } from 'lucide-react';
+import { Loader2, Crown, CheckCircle, Star } from 'lucide-react';
 import { useWindowSize } from 'react-use';
 import Confetti from 'react-confetti';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from './ui/card';
 import withAdminAuth from './withAdminAuth';
 import { db } from '@/lib/firebase';
-import { doc, onSnapshot, collection, query, where, getDocs, getDoc } from 'firebase/firestore';
+import { doc, onSnapshot, collection, query, where, getDocs, getDoc, limit } from 'firebase/firestore';
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from './ui/accordion';
+import { useAuth } from '@/context/AuthContext';
+
 
 const STAGE_CONFIG = {
   1: { title: 'Qualifier Round', subTitle: 'Revealing the Top 20', count: 20 },
@@ -39,7 +41,7 @@ const positiveMessages = [
     "The excitement is building...",
 ];
 
-function AwaitingCeremonyDisplay({ draw, allTickets }: { draw: Draw, allTickets: FullTicket[] }) {
+function AwaitingCeremonyDisplay({ draw, tickets, hasMoreTickets }: { draw: Draw, tickets: FullTicket[], hasMoreTickets: boolean }) {
     const [messageIndex, setMessageIndex] = useState(0);
 
     useEffect(() => {
@@ -55,15 +57,25 @@ function AwaitingCeremonyDisplay({ draw, allTickets }: { draw: Draw, allTickets:
                 <h1 className="text-3xl font-bold font-headline text-primary">The Ceremony Is About to Begin!</h1>
                  <p className="text-muted-foreground mt-2">Winner selection starts on {new Date(draw.announcementDate).toLocaleString()}</p>
             </div>
+            
+            <div className="block lg:hidden mb-6">
+                 <Card className="text-center p-6 bg-primary/10 border-primary/20 flex flex-col justify-center items-center">
+                    <Star className="h-16 w-16 text-primary animate-pulse mb-4"/>
+                    <p className="text-xl font-semibold font-headline text-primary transition-all duration-500">
+                        {positiveMessages[messageIndex]}
+                    </p>
+                </Card>
+            </div>
+
              <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
                  <main className="lg:col-span-2">
                     <Card>
                         <CardHeader>
-                            <CardTitle>Ticket Pool ({allTickets.length})</CardTitle>
-                            <CardDescription>All tickets participating in this draw.</CardDescription>
+                            <CardTitle>Ticket Pool ({tickets.length}{hasMoreTickets ? '+' : ''})</CardTitle>
+                            <CardDescription>A selection of tickets participating in this draw.</CardDescription>
                         </CardHeader>
-                        <CardContent className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-6 lg:grid-cols-8 gap-4">
-                            {allTickets.map(ticket => (
+                        <CardContent className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 lg:grid-cols-6 gap-4">
+                            {tickets.map(ticket => (
                                 <TicketCard
                                     key={ticket.id}
                                     ticket={ticket}
@@ -73,12 +85,14 @@ function AwaitingCeremonyDisplay({ draw, allTickets }: { draw: Draw, allTickets:
                     </Card>
                  </main>
                  <aside className="hidden lg:block">
-                    <Card className="sticky top-24 text-center p-6 bg-primary/10 border-primary/20 h-full flex flex-col justify-center items-center">
-                        <Star className="h-16 w-16 text-primary animate-pulse mb-4"/>
-                        <p className="text-xl font-semibold font-headline text-primary-foreground transition-all duration-500">
-                            {positiveMessages[messageIndex]}
-                        </p>
-                    </Card>
+                    <div className="sticky top-24">
+                        <Card className="text-center p-6 bg-primary/10 border-primary/20 h-full flex flex-col justify-center items-center">
+                            <Star className="h-16 w-16 text-primary animate-pulse mb-4"/>
+                            <p className="text-xl font-semibold font-headline text-primary-foreground transition-all duration-500">
+                                {positiveMessages[messageIndex]}
+                            </p>
+                        </Card>
+                    </div>
                  </aside>
              </div>
         </div>
@@ -145,6 +159,7 @@ function FinishedDrawDisplay({ draw, allTickets }: { draw: Draw, allTickets: Ful
 function AnnounceWinnerComponent({ initialDraw, allTickets }: { initialDraw: Draw; allTickets: FullTicket[] }) {
   const [draw, setDraw] = useState(initialDraw);
   const { width, height } = useWindowSize();
+  const { user } = useAuth();
   
   // Real-time listener for draw updates
   useEffect(() => {
@@ -182,8 +197,12 @@ function AnnounceWinnerComponent({ initialDraw, allTickets }: { initialDraw: Dra
       return <FinishedDrawDisplay draw={draw} allTickets={allTickets} />
   }
 
+  // This handles the "awaiting" state before the ceremony starts.
+  // The 'tickets' prop will be limited to 50 in this case.
   if (draw.status !== 'announcing' || !draw.roundWinners) {
-    return <AwaitingCeremonyDisplay draw={draw} allTickets={allTickets} />
+     const hasMoreTickets = allTickets.length > 50;
+     const displayedTickets = allTickets.slice(0, 50);
+    return <AwaitingCeremonyDisplay draw={draw} tickets={displayedTickets} hasMoreTickets={hasMoreTickets}/>
   }
     
   if (!stageConfig) {
@@ -207,6 +226,8 @@ function AnnounceWinnerComponent({ initialDraw, allTickets }: { initialDraw: Dra
   const announcedInStage = getTicketsByIds(draw.announcedWinners?.[currentStage] || [], allTickets);
   const roundIsComplete = announcedInStage.length === stageConfig.count;
 
+  // Filter for the logged-in user's tickets for the bottom pool view
+  const userTickets = allTickets.filter(t => t.userId === user?.id);
 
   return (
     <div className="container mx-auto py-12 px-4">
@@ -251,11 +272,11 @@ function AnnounceWinnerComponent({ initialDraw, allTickets }: { initialDraw: Dra
        
        <Card className="mt-6">
             <CardHeader>
-                <CardTitle>Ticket Pool ({allTickets.length})</CardTitle>
-                <CardDescription>All tickets participating in this draw.</CardDescription>
+                <CardTitle>Your Tickets ({userTickets.length})</CardTitle>
+                <CardDescription>Your tickets participating in this draw.</CardDescription>
             </CardHeader>
             <CardContent className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-6 lg:grid-cols-8 gap-4">
-                {allTickets.map(ticket => {
+                {userTickets.map(ticket => {
                     const isAnnounced = Object.values(draw.announcedWinners || {}).flat().includes(ticket.id);
                     const allRoundWinners = Object.values(draw.roundWinners || {}).flat();
                     const isInFutureRound = allRoundWinners.includes(ticket.id);
@@ -293,9 +314,12 @@ const AnnounceWinnerWithData = ({ params }: { params: { id: string } }) => {
                 }
                 setDraw(drawData);
 
-                // Fetch all tickets once
-                const ticketsRef = collection(db, 'tickets');
-                const ticketsQuery = query(ticketsRef, where('drawId', '==', params.id));
+                // For upcoming ceremonies, fetch only 51 to check for "50+"
+                const isUpcoming = drawData.status !== 'announcing' && drawData.status !== 'finished';
+                const ticketsQuery = isUpcoming 
+                    ? query(collection(db, 'tickets'), where('drawId', '==', params.id), limit(51))
+                    : query(collection(db, 'tickets'), where('drawId', '==', params.id));
+
                 const ticketsSnapshot = await getDocs(ticketsQuery);
                 const allTicketsData = await Promise.all(ticketsSnapshot.docs.map(async (docSnapshot) => {
                     const ticketData = { id: docSnapshot.id, ...docSnapshot.data() } as Ticket;
@@ -335,3 +359,5 @@ const AnnounceWinnerWithData = ({ params }: { params: { id: string } }) => {
 };
 
 export const AnnounceWinner = withAdminAuth(AnnounceWinnerWithData);
+
+    
