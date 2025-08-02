@@ -158,19 +158,19 @@ function FinishedDrawDisplay({ draw, allTickets }: { draw: Draw; allTickets: Ful
           <AccordionItem value="item-1">
             <AccordionTrigger className="text-lg font-semibold">{STAGE_CONFIG[3].title} ({round3Winners.length} Winners)</AccordionTrigger>
             <AccordionContent className="grid grid-cols-2 sm:grid-cols-3 gap-4 p-4">
-              {round3Winners.map(ticket => <TicketCard key={ticket.id} ticket={ticket} isSelected />)}
+              {round3Winners.map(ticket => <TicketCard key={ticket.id} ticket={ticket} round={3} isSelected />)}
             </AccordionContent>
           </AccordionItem>
           <AccordionItem value="item-2">
             <AccordionTrigger className="text-lg font-semibold">{STAGE_CONFIG[2].title} ({round2Winners.length} Winners)</AccordionTrigger>
             <AccordionContent className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4 p-4">
-              {round2Winners.map(ticket => <TicketCard key={ticket.id} ticket={ticket} />)}
+              {round2Winners.map(ticket => <TicketCard key={ticket.id} ticket={ticket} round={2} isSelected/>)}
             </AccordionContent>
           </AccordionItem>
           <AccordionItem value="item-3">
             <AccordionTrigger className="text-lg font-semibold">{STAGE_CONFIG[1].title} ({round1Winners.length} Winners)</AccordionTrigger>
             <AccordionContent className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4 p-4">
-              {round1Winners.map(ticket => <TicketCard key={ticket.id} ticket={ticket} />)}
+              {round1Winners.map(ticket => <TicketCard key={ticket.id} ticket={ticket} round={1} isSelected/>)}
             </AccordionContent>
           </AccordionItem>
         </Accordion>
@@ -208,7 +208,7 @@ function GrandFinale({ finalists, winner, onComplete }: { finalists: FullTicket[
             <div className="fixed inset-0 bg-background/90 backdrop-blur-sm z-50 flex flex-col items-center justify-center gap-8 p-4">
                 <h2 className="text-4xl text-center font-headline font-bold text-primary">And the winner is...</h2>
                 <div className="flex flex-col md:flex-row gap-4 md:gap-8">
-                    {finalists.map(ticket => <TicketCard key={ticket.id} ticket={ticket} isFinalist={true}/>)}
+                    {finalists.map(ticket => <TicketCard key={ticket.id} ticket={ticket} round={3} isFinalist={true}/>)}
                 </div>
                  <p className="text-7xl font-bold font-headline text-accent animate-pulse">{countdown}</p>
             </div>
@@ -225,7 +225,7 @@ function GrandFinale({ finalists, winner, onComplete }: { finalists: FullTicket[
                         "transition-all duration-1000",
                         winner && ticket.id === winner.id ? "scale-125" : "scale-75 opacity-30"
                     )}>
-                        <TicketCard ticket={ticket} isWinner={winner ? ticket.id === winner.id : false}/>
+                        <TicketCard ticket={ticket} round={winner ? (ticket.id === winner.id ? 4 : 3) : 3} isWinner={winner ? ticket.id === winner.id : false}/>
                     </div>
                 ))}
             </div>
@@ -390,7 +390,6 @@ export function AnnounceWinner({ params }: { params: { id: string } }) {
     }
 
     const userTickets = allTickets?.filter(t => t.userId === user?.id) || [];
-    const allAnnouncedIdsSet = new Set(Object.values(draw?.announcedWinners || {}).flat());
     
     let currentStage = 1;
     if(draw.announcedWinners) {
@@ -436,6 +435,7 @@ export function AnnounceWinner({ params }: { params: { id: string } }) {
                             key={`revealed-${stage}-${ticket.id}`}
                             ticket={ticket}
                             isSelected={true}
+                            round={stage}
                         />
                     ))}
                     {isCurrentRound && revealingTicket && (
@@ -445,6 +445,7 @@ export function AnnounceWinner({ params }: { params: { id: string } }) {
                             isRevealing={true}
                             onRevealComplete={() => handleRevealComplete(revealingTicket.id)}
                             isSelected={true}
+                            round={stage}
                         />
                     )}
                     {isCurrentRound && Array.from({ length: placeholdersCount }).map((_, i) => (
@@ -474,19 +475,27 @@ export function AnnounceWinner({ params }: { params: { id: string } }) {
                     </CardHeader>
                     <CardContent className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4">
                         {userTickets.map(ticket => {
-                            const isAnnounced = allAnnouncedIdsSet.has(ticket.id);
                             let isEliminated = false;
+                            let roundReached = 0;
                             
                             // Determine if the round the ticket *could have* won in is already complete.
-                            if (!isAnnounced) {
+                            if (draw.roundWinners) {
+                                for(let i=4; i >= 1; i--) {
+                                    if(draw.roundWinners[i]?.includes(ticket.id)) {
+                                        roundReached = i;
+                                        break;
+                                    }
+                                }
+                            }
+                            
+                            if (roundReached === 0) {
+                                // If not a winner in any round, check if it was eliminated
                                 let eliminated = false;
-                                for(let i=1; i < 5; i++) { // Check all rounds
-                                    const allWinnersForStage = draw.roundWinners?.[i] || [];
-                                    const announcedInStage = draw.announcedWinners?.[i] || [];
-                                    const stageConf = STAGE_CONFIG[i as keyof typeof STAGE_CONFIG];
-                                    
-                                    // If a round is fully announced and the user's ticket wasn't in the winners list for that round, it's out.
-                                    if (announcedInStage.length === stageConf?.count && !allWinnersForStage.includes(ticket.id)) {
+                                for(let i=1; i < 5; i++) {
+                                     const allWinnersForStage = draw.roundWinners?.[i] || [];
+                                     const announcedInStage = draw.announcedWinners?.[i] || [];
+                                     const stageConf = STAGE_CONFIG[i as keyof typeof STAGE_CONFIG];
+                                     if (announcedInStage.length === stageConf?.count && !allWinnersForStage.includes(ticket.id)) {
                                          eliminated = true;
                                          break;
                                     }
@@ -494,12 +503,14 @@ export function AnnounceWinner({ params }: { params: { id: string } }) {
                                 isEliminated = eliminated;
                             }
 
+
                             return (
                                 <TicketCard
                                     key={`user-ticket-${ticket.id}`}
                                     ticket={ticket}
                                     isEliminated={isEliminated}
-                                    isSelected={isAnnounced}
+                                    isSelected={roundReached > 0}
+                                    round={roundReached}
                                 />
                             );
                         })}
