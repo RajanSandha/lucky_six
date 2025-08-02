@@ -1,4 +1,5 @@
 
+
 "use client";
 
 import Link from "next/link";
@@ -23,9 +24,7 @@ export default function Header() {
   
   const navItems = [
     { href: "/draws", label: "Draws", public: true },
-    { href: "/results", label: "Results", public: true },
-    { href: "/announcements", label: "Announcements", public: true },
-    { href: "/fraud-detection", label: "Fraud Detection", public: true },
+    { href: "/announcements", label: "Draw Results", public: true },
     { href: "/admin/draws", label: "Draws Management", admin: true },
   ];
 
