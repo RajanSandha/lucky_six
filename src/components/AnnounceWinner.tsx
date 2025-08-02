@@ -177,9 +177,31 @@ function FinishedDrawDisplay({ draw, allTickets }: { draw: Draw, allTickets: Ful
     )
 }
 
+const SlotMachineGraphic = () => (
+    <div className="relative w-full max-w-xs mx-auto">
+        <svg viewBox="0 0 160 120" xmlns="http://www.w3.org/2000/svg" className="w-full h-auto">
+            {/* Main Body */}
+            <path d="M10,20 C5,20 2,25 2,30 V90 C2,95 5,100 10,100 H150 C155,100 158,95 158,90 V30 C158,25 155,20 150,20 H10 Z" fill="hsl(var(--card))" stroke="hsl(var(--border))" strokeWidth="1"/>
+            <path d="M15,15 C10,15 7,18 7,23 V87 C7,92 10,95 15,95 H145 C150,95 153,92 153,87 V23 C153,18 150,15 145,15 H15 Z" fill="hsl(var(--muted))" stroke="hsl(var(--border))" strokeWidth="0.5"/>
+            
+            {/* Screen Area */}
+            <rect x="25" y="40" width="110" height="40" rx="3" fill="hsl(var(--background))" stroke="hsl(var(--input))" strokeWidth="1" />
+            
+             {/* Dividers */}
+            <line x1="60" y1="40" x2="60" y2="80" stroke="hsl(var(--input))" strokeWidth="1" />
+            <line x1="95" y1="40" x2="95" y2="80" stroke="hsl(var(--input))" strokeWidth="1" />
+            
+            {/* Handle */}
+            <path d="M148,35 h5 a2,2 0 0 1 2,2 v10 a2,2 0 0 1 -2,2 h-5" fill="hsl(var(--card))" stroke="hsl(var(--border))" strokeWidth="1"/>
+            <circle cx="155" cy="30" r="5" fill="hsl(var(--primary))" stroke="hsl(var(--border))" strokeWidth="1"/>
+        </svg>
+    </div>
+);
+
 
 function AnnounceWinnerComponent({ initialDraw, allTickets }: { initialDraw: Draw; allTickets: FullTicket[] }) {
   const [draw, setDraw] = useState(initialDraw);
+  const [revealedDigits, setRevealedDigits] = useState<number>(0);
   const { width, height } = useWindowSize();
   const { user } = useAuth();
   
@@ -215,6 +237,25 @@ function AnnounceWinnerComponent({ initialDraw, allTickets }: { initialDraw: Dra
   const currentStage = getCurrentStage();
   const stageConfig = STAGE_CONFIG[currentStage as keyof typeof STAGE_CONFIG];
   
+  const announcedInStage = getTicketsByIds(draw.announcedWinners?.[currentStage] || [], allTickets);
+  const roundIsComplete = announcedInStage.length === stageConfig.count;
+  const nextWinnerToAnnounceId = draw.roundWinners?.[currentStage].find(id => !draw.announcedWinners?.[currentStage].includes(id));
+  const nextWinnerToAnnounce = allTickets.find(t => t.id === nextWinnerToAnnounceId);
+
+  // Left-to-right reveal animation effect
+  useEffect(() => {
+    setRevealedDigits(0); // Reset on new winner
+    if (nextWinnerToAnnounce && !roundIsComplete) {
+      const timers = Array.from({ length: 6 }).map((_, i) =>
+        setTimeout(() => {
+          setRevealedDigits(prev => prev + 1);
+        }, (i + 1) * 800) // Reveal one digit every 800ms
+      );
+      return () => timers.forEach(clearTimeout);
+    }
+  }, [nextWinnerToAnnounce, roundIsComplete]);
+
+  
   if (draw.status === 'finished') {
       return <FinishedDrawDisplay draw={draw} allTickets={allTickets} />
   }
@@ -244,22 +285,39 @@ function AnnounceWinnerComponent({ initialDraw, allTickets }: { initialDraw: Dra
       )
   }
 
-  const announcedInStage = getTicketsByIds(draw.announcedWinners?.[currentStage] || [], allTickets);
-  const roundIsComplete = announcedInStage.length === stageConfig.count;
-
   // Filter for the logged-in user's tickets for the bottom pool view
   const userTickets = allTickets.filter(t => t.userId === user?.id);
 
   const SlotMachine = () => (
-     <div className="p-4 rounded-lg border-2 bg-card shadow-lg border-accent animate-pulse flex flex-col items-center justify-center">
-        <div className="flex justify-center gap-1 mb-2">
-            {Array.from({length: 6}).map((_, index) => (
-                <NumberRoller key={index} finalNumber={'0'} isRolling={true} />
-            ))}
+     <Card className="p-4 rounded-lg border-2 bg-card shadow-lg border-primary/20 flex flex-col items-center justify-center text-center">
+        <h3 className="font-headline text-lg mb-2">Next Selection</h3>
+        <div className="relative w-full max-w-[200px] h-[90px]">
+             <SlotMachineGraphic />
+             <div className="absolute inset-0 flex items-center justify-center gap-1" style={{top: '5px', left: '2px'}}>
+                 {Array.from({length: 6}).map((_, index) => {
+                     const isRevealed = index < revealedDigits;
+                     const finalNumber = nextWinnerToAnnounce?.numbers[index] || '0';
+                     return (
+                         <NumberRoller
+                            key={index}
+                            finalNumber={finalNumber}
+                            isRolling={!isRevealed && !roundIsComplete}
+                            className="w-5 h-7 text-sm"
+                        />
+                     )
+                 })}
+            </div>
         </div>
-        <div className="h-4 mt-2 bg-muted/50 rounded-full animate-pulse w-3/4 mx-auto"/>
-        <p className="text-sm text-muted-foreground mt-2">Selecting next winner...</p>
-    </div>
+        <div className="mt-2">
+            { roundIsComplete ? (
+                 <p className="text-sm font-semibold text-green-600">Round Complete!</p>
+            ) : nextWinnerToAnnounce && revealedDigits < 6 ? (
+                 <p className="text-sm text-muted-foreground animate-pulse">Revealing next winner...</p>
+            ) : (
+                 <p className="text-sm text-muted-foreground">Waiting for selection...</p>
+            )}
+        </div>
+    </Card>
   );
 
   return (
@@ -278,18 +336,7 @@ function AnnounceWinnerComponent({ initialDraw, allTickets }: { initialDraw: Dra
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
           <div className="md:col-span-1">
               <div className="sticky top-24">
-                  <h3 className="font-headline text-lg mb-2">Next Selection</h3>
-                   {!roundIsComplete ? (
-                        <SlotMachine />
-                    ) : (
-                        <Card className="flex items-center justify-center p-4 h-40 bg-green-500/10 border-green-500/20">
-                            <div className="text-center">
-                                 <CheckCircle className="h-10 w-10 text-green-600 mx-auto mb-2"/>
-                                 <p className="font-semibold text-green-700">Round Complete!</p>
-                                 <p className="text-sm text-muted-foreground">Waiting for next round...</p>
-                            </div>
-                        </Card>
-                    )}
+                   <SlotMachine />
               </div>
           </div>
 
@@ -302,6 +349,9 @@ function AnnounceWinnerComponent({ initialDraw, allTickets }: { initialDraw: Dra
                 <CardContent className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-4">
                     {announcedInStage.map(ticket => (
                         <TicketCard key={`revealed-${ticket.id}`} ticket={ticket} isSelected={true}/>
+                    ))}
+                     {!roundIsComplete && Array.from({length: (stageConfig.count - announcedInStage.length)}).map((_, i) => (
+                        <div key={`placeholder-${i}`} className="p-2 md:p-4 rounded-lg border-2 bg-muted/50 shadow-sm border-dashed animate-pulse"/>
                     ))}
                 </CardContent>
             </Card>
@@ -318,7 +368,7 @@ function AnnounceWinnerComponent({ initialDraw, allTickets }: { initialDraw: Dra
                     const isAnnounced = Object.values(draw.announcedWinners || {}).flat().includes(ticket.id);
                     const allRoundWinners = Object.values(draw.roundWinners || {}).flat();
                     const isInFutureRound = allRoundWinners.includes(ticket.id);
-                    const isEliminated = !isInFutureRound;
+                    const isEliminated = draw.status === 'announcing' && !isInFutureRound;
 
                     return (
                         <TicketCard
@@ -396,6 +446,7 @@ export const AnnounceWinner = ({ params }: { params: { id: string } }) => {
 };
 
     
+
 
 
 
