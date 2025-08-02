@@ -1,4 +1,5 @@
 
+
 "use client";
 
 import { useState, useEffect } from 'react';
@@ -6,7 +7,7 @@ import type { Draw, Ticket, User } from '@/lib/types';
 import { TicketCard } from './TicketCard';
 import { getDraw } from '@/app/admin/draws/actions';
 import { useToast } from '@/hooks/use-toast';
-import { Loader2, Crown, CheckCircle, Star } from 'lucide-react';
+import { Loader2, Crown, CheckCircle, Star, MoreHorizontal } from 'lucide-react';
 import { useWindowSize } from 'react-use';
 import Confetti from 'react-confetti';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from './ui/card';
@@ -15,6 +16,7 @@ import { db } from '@/lib/firebase';
 import { doc, onSnapshot, collection, query, where, getDocs, getDoc, limit } from 'firebase/firestore';
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from './ui/accordion';
 import { useAuth } from '@/context/AuthContext';
+import { cn } from '@/lib/utils';
 
 
 const STAGE_CONFIG = {
@@ -43,10 +45,15 @@ const positiveMessages = [
 
 function AwaitingCeremonyDisplay({ draw, tickets, hasMoreTickets }: { draw: Draw, tickets: FullTicket[], hasMoreTickets: boolean }) {
     const [messageIndex, setMessageIndex] = useState(0);
+    const [isFading, setIsFading] = useState(false);
 
     useEffect(() => {
         const interval = setInterval(() => {
-            setMessageIndex(prevIndex => (prevIndex + 1) % positiveMessages.length);
+            setIsFading(true);
+            setTimeout(() => {
+                 setMessageIndex(prevIndex => (prevIndex + 1) % positiveMessages.length);
+                 setIsFading(false);
+            }, 500); // fade-out duration
         }, 3000); // Change message every 3 seconds
         return () => clearInterval(interval);
     }, []);
@@ -59,9 +66,9 @@ function AwaitingCeremonyDisplay({ draw, tickets, hasMoreTickets }: { draw: Draw
             </div>
             
             <div className="block lg:hidden mb-6">
-                 <Card className="text-center p-6 bg-primary/10 border-primary/20 flex flex-col justify-center items-center">
+                 <Card className="text-center p-6 bg-primary/10 border-primary/20 flex flex-col justify-center items-center h-48">
                     <Star className="h-16 w-16 text-primary animate-pulse mb-4"/>
-                    <p className="text-xl font-semibold font-headline text-primary transition-all duration-500">
+                    <p className={cn("text-xl font-semibold font-headline text-primary transition-opacity duration-500", isFading ? "opacity-0" : "opacity-100")}>
                         {positiveMessages[messageIndex]}
                     </p>
                 </Card>
@@ -71,24 +78,39 @@ function AwaitingCeremonyDisplay({ draw, tickets, hasMoreTickets }: { draw: Draw
                  <main className="lg:col-span-2">
                     <Card>
                         <CardHeader>
-                            <CardTitle>Ticket Pool ({tickets.length}{hasMoreTickets ? '+' : ''})</CardTitle>
+                            <CardTitle>Ticket Pool ({hasMoreTickets ? '50+' : tickets.length})</CardTitle>
                             <CardDescription>A selection of tickets participating in this draw.</CardDescription>
                         </CardHeader>
                         <CardContent className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 lg:grid-cols-6 gap-4">
-                            {tickets.map(ticket => (
-                                <TicketCard
-                                    key={ticket.id}
-                                    ticket={ticket}
-                                />
-                            ))}
+                            {tickets.map((ticket, index) => {
+                                if (hasMoreTickets && index === tickets.length - 1) {
+                                    return (
+                                        <div key="more-tickets" className="relative p-2 md:p-4 rounded-lg border-2 bg-card shadow-sm border-dashed">
+                                            <div className="flex justify-center items-center h-full blur-[2px] opacity-60">
+                                                <TicketCard ticket={ticket} />
+                                            </div>
+                                            <div className="absolute inset-0 flex flex-col items-center justify-center bg-background/50">
+                                                 <MoreHorizontal className="h-6 w-6 text-muted-foreground"/>
+                                                 <p className="text-xs font-semibold text-muted-foreground">More...</p>
+                                            </div>
+                                        </div>
+                                    )
+                                }
+                                return (
+                                    <TicketCard
+                                        key={ticket.id}
+                                        ticket={ticket}
+                                    />
+                                );
+                            })}
                         </CardContent>
                     </Card>
                  </main>
                  <aside className="hidden lg:block">
                     <div className="sticky top-24">
-                        <Card className="text-center p-6 bg-primary/10 border-primary/20 h-full flex flex-col justify-center items-center">
+                        <Card className="text-center p-6 bg-primary/10 border-primary/20 h-96 flex flex-col justify-center items-center">
                             <Star className="h-16 w-16 text-primary animate-pulse mb-4"/>
-                            <p className="text-xl font-semibold font-headline text-primary-foreground transition-all duration-500">
+                            <p className={cn("text-xl font-semibold font-headline text-primary-foreground transition-opacity duration-500", isFading ? "opacity-0" : "opacity-100")}>
                                 {positiveMessages[messageIndex]}
                             </p>
                         </Card>
@@ -198,7 +220,6 @@ function AnnounceWinnerComponent({ initialDraw, allTickets }: { initialDraw: Dra
   }
 
   // This handles the "awaiting" state before the ceremony starts.
-  // The 'tickets' prop will be limited to 50 in this case.
   if (draw.status !== 'announcing' || !draw.roundWinners) {
      const hasMoreTickets = allTickets.length > 50;
      const displayedTickets = allTickets.slice(0, 50);
@@ -314,7 +335,6 @@ const AnnounceWinnerWithData = ({ params }: { params: { id: string } }) => {
                 }
                 setDraw(drawData);
 
-                // For upcoming ceremonies, fetch only 51 to check for "50+"
                 const isUpcoming = drawData.status !== 'announcing' && drawData.status !== 'finished';
                 const ticketsQuery = isUpcoming 
                     ? query(collection(db, 'tickets'), where('drawId', '==', params.id), limit(51))
