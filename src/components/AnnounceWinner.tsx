@@ -10,7 +10,7 @@ import Confetti from 'react-confetti';
 import { Loader2, Crown } from 'lucide-react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from './ui/card';
 import { db } from '@/lib/firebase';
-import { doc, onSnapshot, collection, query, where, getDocs, getDoc, limit } from 'firebase/firestore';
+import { doc, onSnapshot, collection, query, where, getDocs, getDoc } from 'firebase/firestore';
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from './ui/accordion';
 import { useAuth } from '@/context/AuthContext';
 import { cn } from '@/lib/utils';
@@ -152,12 +152,14 @@ function FinishedDrawDisplay({ draw, allTickets }: { draw: Draw, allTickets: Ful
     )
 }
 
-function GrandFinale({ finalists, winner, onComplete }: { finalists: FullTicket[], winner: FullTicket, onComplete: () => void }) {
+function GrandFinale({ finalists, winner, onComplete }: { finalists: FullTicket[], winner: FullTicket | null, onComplete: () => void }) {
     const [countdown, setCountdown] = useState(10);
     const [revealed, setRevealed] = useState(false);
     const { width, height } = useWindowSize();
 
     useEffect(() => {
+        if (!winner) return;
+
         if (countdown > 0) {
             const timer = setTimeout(() => setCountdown(countdown - 1), 1000);
             return () => clearTimeout(timer);
@@ -166,16 +168,16 @@ function GrandFinale({ finalists, winner, onComplete }: { finalists: FullTicket[
             const finalTimer = setTimeout(onComplete, 8000); // Wait 8s before moving to finished screen
             return () => clearTimeout(finalTimer);
         }
-    }, [countdown, onComplete, revealed]);
+    }, [countdown, onComplete, revealed, winner]);
     
-    if (!revealed) {
+    if (!winner) {
         return (
-             <div className="fixed inset-0 bg-background/90 backdrop-blur-sm z-50 flex flex-col items-center justify-center gap-8">
+            <div className="fixed inset-0 bg-background/90 backdrop-blur-sm z-50 flex flex-col items-center justify-center gap-8">
                 <h2 className="text-4xl font-headline font-bold text-primary">And the winner is...</h2>
                 <div className="flex gap-8">
                     {finalists.map(ticket => <TicketCard key={ticket.id} ticket={ticket} isFinalist={true}/>)}
                 </div>
-                <p className="text-7xl font-bold font-headline text-accent animate-ping">{countdown}</p>
+                 <p className="text-7xl font-bold font-headline text-accent animate-ping">{countdown}</p>
             </div>
         )
     }
@@ -244,13 +246,13 @@ const AnnounceWinnerComponent = ({ params }: { params: { id: string } }) => {
                 setAllTickets(allTicketsData);
             } catch (e: any) {
                 setError(`Failed to load ticket data: ${e.message}`);
-                setLoading(false);
+            } finally {
+                 setLoading(false);
             }
         };
 
         fetchInitialData();
 
-        // Set up real-time listener for the draw document
         const unsub = onSnapshot(doc(db, "draws", params.id), (doc) => {
             if (doc.exists()) {
                 const data = doc.data() as any;
@@ -262,11 +264,10 @@ const AnnounceWinnerComponent = ({ params }: { params: { id: string } }) => {
                     announcementDate: data.announcementDate?.toDate(),
                 };
                 setDraw(newDrawData);
-                setLoading(false);
             } else {
                 setError("Draw not found.");
-                setLoading(false);
             }
+            if(loading) setLoading(false);
         });
 
         return () => unsub();
@@ -277,26 +278,27 @@ const AnnounceWinnerComponent = ({ params }: { params: { id: string } }) => {
     useEffect(() => {
         if (!draw || allTickets.length === 0) return;
 
-        // Determine current stage
-        let stage = 1;
-        if (draw.roundWinners && draw.announcedWinners) {
-            for (const s of Object.keys(STAGE_CONFIG).map(Number)) {
-                if ((draw.announcedWinners[s]?.length || 0) < (draw.roundWinners[s]?.length || 0)) {
-                    stage = s;
-                    break;
-                }
-                if ((draw.announcedWinners[s]?.length || 0) === (draw.roundWinners[s]?.length || 0)) {
-                    stage = s + 1;
-                }
+        // Determine current view state based on draw status
+        if (draw.status === 'finished' && viewState !== 'finished') {
+             // Delay this transition until the finale animation is complete
+             if(viewState !== 'finale') {
+                setViewState('finished');
+             }
+        } else if (draw.status === 'announcing') {
+            const announcedWinnerIds = Object.values(draw.announcedWinners || {}).flat();
+            const totalAnnouncedCount = announcedWinnerIds.length;
+            const totalRoundWinnerCount = Object.values(draw.roundWinners || {}).flat().length;
+
+            if (totalAnnouncedCount === totalRoundWinnerCount && totalAnnouncedCount > 0) {
+                 setViewState('finale');
+            } else {
+                 setViewState('announcing');
             }
+        } else if (draw.status === 'upcoming' || draw.status === 'active' || draw.status === 'awaiting_announcement') {
+             setViewState('awaiting');
         }
-        setCurrentStage(stage);
         
-        // Update announced tickets for the current stage
-        const announcedIdsForStage = draw.announcedWinners?.[stage] || [];
-        setAnnouncedInStage(getTicketsByIds(announcedIdsForStage, allTickets));
-        
-        // Find the newest winner that hasn't been processed
+        // Find the newest winner that hasn't been processed by the UI
         const allAnnouncedIds = Object.values(draw.announcedWinners || {}).flat();
         const newWinnerId = allAnnouncedIds.find(id => !prevAnnouncedWinnerIds.current.has(id));
 
@@ -308,13 +310,26 @@ const AnnounceWinnerComponent = ({ params }: { params: { id: string } }) => {
             }
         }
 
-        // Handle view state transitions
-        if (draw.status === 'announcing' && stage < 5) {
-             setViewState('announcing');
-        } else if (draw.status === 'finished' && viewState !== 'finished') {
-             setViewState('finale');
-        } else if (draw.status !== 'announcing' && draw.status !== 'finished') {
-             setViewState('awaiting');
+        // Determine current stage for display purposes
+        let stage = 1;
+        if (draw.announcedWinners) {
+             for (const s of Object.keys(STAGE_CONFIG).map(Number)) {
+                const stageConfig = STAGE_CONFIG[s as keyof typeof STAGE_CONFIG];
+                if ((draw.announcedWinners[s]?.length || 0) < stageConfig.count) {
+                    stage = s;
+                    break;
+                }
+                if ((draw.announcedWinners[s]?.length || 0) === stageConfig.count) {
+                    stage = s + 1;
+                }
+            }
+        }
+        setCurrentStage(stage);
+
+        // Update the list of tickets shown in the "Selected this Round" card
+        if (stage <= 4) {
+             const announcedIdsForStage = draw.announcedWinners?.[stage] || [];
+             setAnnouncedInStage(getTicketsByIds(announcedIdsForStage, allTickets));
         }
 
     }, [draw, allTickets, isRevealing, winnerToReveal, viewState]);
@@ -323,7 +338,7 @@ const AnnounceWinnerComponent = ({ params }: { params: { id: string } }) => {
     const handleRevealComplete = useCallback(() => {
         if (winnerToReveal) {
             prevAnnouncedWinnerIds.current.add(winnerToReveal.id);
-            setAnnouncedInStage(prev => [...prev, winnerToReveal]);
+            // This logic is now handled by the main useEffect
         }
         setIsRevealing(false);
         setWinnerToReveal(null);
@@ -352,21 +367,20 @@ const AnnounceWinnerComponent = ({ params }: { params: { id: string } }) => {
     
     if (viewState === 'finale') {
         const finalists = getTicketsByIds(draw.announcedWinners?.[3] || [], allTickets);
-        const winner = getTicketsByIds(draw.announcedWinners?.[4] || [], allTickets)[0];
+        const winner = getTicketsByIds(draw.announcedWinners?.[4] || [], allTickets)[0] || null;
         
-        if (!winner) return <FinishedDrawDisplay draw={draw} allTickets={allTickets} />;
-
         return <GrandFinale finalists={finalists} winner={winner} onComplete={() => setViewState('finished')} />
     }
     
     const stageConfig = STAGE_CONFIG[currentStage as keyof typeof STAGE_CONFIG];
     if (!stageConfig) {
-        // This can happen briefly between the final winner being announced and status changing to 'finished'
-        return <div className="flex h-screen items-center justify-center"><Loader2 className="h-16 w-16 animate-spin text-primary" /></div>;
+        return <div className="flex h-screen items-center justify-center"><p>Ceremony Complete!</p></div>;
     }
 
     const userTickets = allTickets?.filter(t => t.userId === user?.id) || [];
     const roundIsComplete = announcedInStage.length === stageConfig.count;
+    const allAnnouncedIdsSet = new Set(Object.values(draw?.announcedWinners || {}).flat());
+
 
     const SlotMachine = () => (
         <Card className="p-4 rounded-lg border-2 bg-card shadow-lg border-primary/20 flex flex-col items-center justify-center text-center">
@@ -379,7 +393,7 @@ const AnnounceWinnerComponent = ({ params }: { params: { id: string } }) => {
                             key={index}
                             finalNumber={finalNumber}
                             isRolling={isRevealing}
-                            revealDelay={index * 800} // Staggered reveal
+                            revealDelay={index * 500} // Staggered reveal
                             onRevealComplete={index === 5 ? handleRevealComplete : undefined}
                         />
                      )
@@ -425,13 +439,13 @@ const AnnounceWinnerComponent = ({ params }: { params: { id: string } }) => {
                 </p>
             </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                <div className="md:col-span-1">
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                <div className="lg:col-span-1">
                     <div className="sticky top-24 space-y-6">
                         <SlotMachine />
                     </div>
                 </div>
-                <div className="md:col-span-2">
+                <div className="lg:col-span-2">
                     <Card>
                         <CardHeader>
                             <CardTitle>Your Tickets ({userTickets.length})</CardTitle>
@@ -439,8 +453,8 @@ const AnnounceWinnerComponent = ({ params }: { params: { id: string } }) => {
                         </CardHeader>
                         <CardContent className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-4">
                             {userTickets.map(ticket => {
-                                const isAnnounced = prevAnnouncedWinnerIds.current.has(ticket.id);
-                                const isEliminated = draw.roundWinners ? !Object.values(draw.roundWinners).flat().includes(ticket.id) : false;
+                                const isAnnounced = allAnnouncedIdsSet.has(ticket.id);
+                                const isEliminated = draw.status === 'announcing' && !allAnnouncedIdsSet.has(ticket.id);
 
                                 return (
                                     <TicketCard
@@ -460,16 +474,18 @@ const AnnounceWinnerComponent = ({ params }: { params: { id: string } }) => {
                 <RoundResultsCard title="Selected This Round" tickets={announcedInStage} count={stageConfig.count} />
 
                 {[3, 2, 1].map(stageNum => {
-                    const announcedForStage = draw.announcedWinners?.[stageNum] || [];
-                    if (currentStage > stageNum && announcedForStage.length > 0) {
-                        const stageData = STAGE_CONFIG[stageNum as keyof typeof STAGE_CONFIG];
-                        return (
-                        <RoundResultsCard 
-                            key={`past-round-${stageNum}`}
-                            title={`${stageData.title} (${stageData.count} / ${stageData.count})`}
-                            tickets={getTicketsByIds(announcedForStage, allTickets)}
-                        />
-                        )
+                    if (currentStage > stageNum) {
+                        const announcedForStage = draw.announcedWinners?.[stageNum] || [];
+                        if (announcedForStage.length > 0) {
+                            const stageData = STAGE_CONFIG[stageNum as keyof typeof STAGE_CONFIG];
+                            return (
+                                <RoundResultsCard 
+                                    key={`past-round-${stageNum}`}
+                                    title={`${stageData.title} (${stageData.count} / ${stageData.count})`}
+                                    tickets={getTicketsByIds(announcedForStage, allTickets)}
+                                />
+                            );
+                        }
                     }
                     return null;
                 })}
