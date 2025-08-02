@@ -14,13 +14,27 @@ import { Ticket, Search, Clock } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { getDraws } from "../admin/draws/actions";
 import { Countdown } from "@/components/Countdown";
+import type { Draw } from "@/lib/types";
+
+const getDrawStatusInfo = (draw: Draw): { isUpcoming: boolean; isActive: boolean; countdownTo: 'start' | 'end'; countdownDate: Date } => {
+    const now = new Date();
+    const startDate = new Date(draw.startDate);
+    const endDate = new Date(draw.endDate);
+    
+    if (now < startDate) {
+        return { isUpcoming: true, isActive: false, countdownTo: 'start', countdownDate: startDate };
+    }
+    
+    return { isUpcoming: false, isActive: true, countdownTo: 'end', countdownDate: endDate };
+};
+
 
 export default async function DrawsPage() {
   const allDraws = await getDraws();
   const now = new Date();
   
-  // Filter for draws that haven't ended yet
-  const visibleDraws = allDraws.filter(d => d.endDate > now);
+  // A draw is visible if its end date is in the future
+  const visibleDraws = allDraws.filter(d => new Date(d.endDate) > now);
 
   return (
     <div className="container mx-auto py-12 px-4">
@@ -35,10 +49,8 @@ export default async function DrawsPage() {
       {visibleDraws.length > 0 ? (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
           {visibleDraws.map((draw) => {
-            const isUpcoming = new Date(draw.startDate) > now;
-            const timeRemaining = isUpcoming 
-              ? new Date(draw.startDate).getTime() - now.getTime()
-              : new Date(draw.endDate).getTime() - now.getTime();
+            const statusInfo = getDrawStatusInfo(draw);
+            const timeRemaining = statusInfo.countdownDate.getTime() - now.getTime();
             const daysRemaining = Math.ceil(timeRemaining / (1000 * 3600 * 24));
 
             return (
@@ -46,7 +58,7 @@ export default async function DrawsPage() {
                 {draw.imageUrl && (
                   <div className="relative h-48 w-full">
                     <Image src={draw.imageUrl} alt={draw.name} layout="fill" objectFit="cover" data-ai-hint="lottery ticket" />
-                    {isUpcoming && (
+                    {statusInfo.isUpcoming && (
                       <div className="absolute inset-0 bg-black/50 flex items-center justify-center">
                         <Badge variant="secondary" className="text-sm bg-background/80 text-foreground">
                           <Clock className="mr-2 h-4 w-4" />
@@ -68,15 +80,15 @@ export default async function DrawsPage() {
                     </span>
                   </div>
                   <div className="flex justify-between items-center">
-                    <span className="text-sm font-semibold text-muted-foreground">{isUpcoming ? 'Starts In' : 'Ends In'}</span>
-                    <Badge variant="secondary">{daysRemaining} days</Badge>
+                    <span className="text-sm font-semibold text-muted-foreground">{statusInfo.isUpcoming ? 'Starts In' : 'Ends In'}</span>
+                    <Badge variant="secondary">{daysRemaining > 0 ? `${daysRemaining} day(s)` : 'Today'}</Badge>
                   </div>
                 </CardContent>
                 <CardFooter>
-                  <Button asChild className="w-full bg-accent text-accent-foreground hover:bg-accent/90 font-bold" disabled={isUpcoming}>
+                  <Button asChild className="w-full bg-accent text-accent-foreground hover:bg-accent/90 font-bold" disabled={statusInfo.isUpcoming}>
                     <Link href={`/draws/${draw.id}`}>
                       <Ticket className="mr-2 h-4 w-4" />
-                      {isUpcoming ? 'Get Notified (Coming Soon)' : `Participate for ₹${draw.ticketPrice}`}
+                      {statusInfo.isUpcoming ? 'View Details' : `Participate for ₹${draw.ticketPrice}`}
                     </Link>
                   </Button>
                 </CardFooter>

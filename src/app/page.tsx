@@ -16,10 +16,42 @@ import { RecentWinners } from "@/components/RecentWinners";
 import { getDraws } from "./admin/draws/actions";
 import type { Draw } from "@/lib/types";
 
+const getHomepageDraw = (allDraws: Draw[]): Draw | null => {
+    const now = new Date();
+    // Prioritize active draws
+    const activeDraws = allDraws
+        .filter(d => new Date(d.startDate) <= now && new Date(d.endDate) > now)
+        .sort((a,b) => new Date(a.endDate).getTime() - new Date(b.endDate).getTime());
+    
+    if(activeDraws.length > 0) return activeDraws[0];
+
+    // If no active draws, find the next upcoming draw
+    const upcomingDraws = allDraws
+        .filter(d => new Date(d.startDate) > now)
+        .sort((a,b) => new Date(a.startDate).getTime() - new Date(b.startDate).getTime());
+    
+    if(upcomingDraws.length > 0) return upcomingDraws[0];
+
+    return null; // No active or upcoming draws
+}
+
+const getDrawStatusInfo = (draw: Draw): { isUpcoming: boolean; isActive: boolean; countdownTo: 'start' | 'end'; countdownDate: Date } => {
+    const now = new Date();
+    const startDate = new Date(draw.startDate);
+    const endDate = new Date(draw.endDate);
+    
+    if (now < startDate) {
+        return { isUpcoming: true, isActive: false, countdownTo: 'start', countdownDate: startDate };
+    }
+    
+    return { isUpcoming: false, isActive: true, countdownTo: 'end', countdownDate: endDate };
+};
+
+
 export default async function Home() {
   const allDraws = await getDraws();
-  const ongoingDraws = allDraws.filter(d => d.endDate > new Date());
-  const mainDraw = ongoingDraws.length > 0 ? ongoingDraws[0] : null;
+  const mainDraw = getHomepageDraw(allDraws);
+  const statusInfo = mainDraw ? getDrawStatusInfo(mainDraw) : null;
 
   return (
     <div className="flex flex-col items-center">
@@ -78,7 +110,7 @@ export default async function Home() {
         </div>
       </section>
 
-      {mainDraw && (
+      {mainDraw && statusInfo && (
         <section className="w-full bg-muted/50 py-16 md:py-24">
           <div className="container mx-auto px-4 flex justify-center">
             <Card className="w-full max-w-2xl shadow-lg overflow-hidden">
@@ -95,15 +127,15 @@ export default async function Home() {
                 <div className="text-center">
                   <p className="text-sm text-muted-foreground">Prize Pool</p>
                   <p className="text-5xl font-bold font-headline tracking-tight text-primary">₹{mainDraw.prize.toLocaleString('en-IN')}</p>
-                  <p className="text-lg text-muted-foreground mt-4">Draw ends in:</p>
-                  <Countdown endDate={mainDraw.endDate} />
+                  <p className="text-lg text-muted-foreground mt-4">{statusInfo.isUpcoming ? 'Draw starts in:' : 'Draw ends in:'}</p>
+                  <Countdown endDate={statusInfo.countdownDate} />
                 </div>
               </CardContent>
               <CardFooter className="flex justify-center">
-                <Button asChild className="bg-accent text-accent-foreground hover:bg-accent/90 w-full sm:w-auto font-bold">
+                <Button asChild className="bg-accent text-accent-foreground hover:bg-accent/90 w-full sm:w-auto font-bold" disabled={statusInfo.isUpcoming}>
                   <Link href={`/draws/${mainDraw.id}`}>
                     <Ticket className="mr-2 h-5 w-5" />
-                    Buy a Ticket Now
+                    {statusInfo.isUpcoming ? 'View Details' : 'Buy a Ticket Now'}
                   </Link>
                 </Button>
               </CardFooter>

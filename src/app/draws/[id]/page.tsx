@@ -49,6 +49,7 @@ export default function DrawDetailPage() {
             ...drawData,
             startDate: drawData.startDate.toDate(),
             endDate: drawData.endDate.toDate(),
+            announcementDate: drawData.announcementDate.toDate(),
         } as Draw;
         setDraw(fetchedDraw);
 
@@ -158,15 +159,31 @@ export default function DrawDetailPage() {
     // Refetch tickets to ensure our local list is up-to-date
     fetchDrawAndTickets(); 
   };
+  
+  const getDrawStatusInfo = (draw: Draw | null): { isActive: boolean; isUpcoming: boolean; message: string; countdownDate: Date | null } => {
+    if (!draw) return { isActive: false, isUpcoming: false, message: 'Loading draw...', countdownDate: null };
+    
+    const now = new Date();
+    const startDate = new Date(draw.startDate);
+    const endDate = new Date(draw.endDate);
+    
+    if (now < startDate) {
+        return { isActive: false, isUpcoming: true, message: 'This draw has not started yet!', countdownDate: startDate };
+    }
+    if (now >= startDate && now <= endDate) {
+        return { isActive: true, isUpcoming: false, message: '', countdownDate: endDate };
+    }
+    return { isActive: false, isUpcoming: false, message: 'This draw has ended.', countdownDate: null };
+  };
 
-  const isDrawActive = draw && new Date(draw.startDate) <= new Date() && new Date(draw.endDate) > new Date();
+  const statusInfo = getDrawStatusInfo(draw);
 
   const handlePayment = async () => {
     if (!user) {
         toast({ title: "Not Logged In", description: "You must be logged in to purchase a ticket.", variant: "destructive" });
         return;
     }
-    if (!draw || !isDrawActive) return;
+    if (!draw || !statusInfo.isActive) return;
 
     setIsBuying(true);
     toast({
@@ -224,7 +241,7 @@ export default function DrawDetailPage() {
             <p className="text-muted-foreground mt-2 mb-4">You're officially in the draw.</p>
             <p className="font-semibold">Your ticket number is:</p>
             <TicketDisplay numbers={lastPurchasedTicket} />
-            <p className="mt-4 text-sm text-muted-foreground">We wish you the best of luck. Winners will be announced on {new Date(draw.endDate).toLocaleDateString()}.</p>
+            <p className="mt-4 text-sm text-muted-foreground">We wish you the best of luck. Winners will be announced on {new Date(draw.announcementDate).toLocaleDateString()}.</p>
           </CardContent>
           <CardContent className="flex flex-col sm:flex-row items-center justify-center gap-4">
             <Button onClick={resetForNewPurchase} variant="outline">
@@ -256,14 +273,13 @@ export default function DrawDetailPage() {
           <CardDescription>Prize: ₹{draw.prize.toLocaleString('en-IN')} | Ends on: {new Date(draw.endDate).toLocaleDateString()}</CardDescription>
         </CardHeader>
         <CardContent>
-          {!isDrawActive && (
+          {!statusInfo.isActive && (
               <div className="text-center bg-muted/50 p-4 rounded-lg mb-6">
                   <h3 className="font-bold font-headline text-primary flex items-center justify-center gap-2">
                     <Clock className="h-5 w-5"/>
-                    This draw is not active yet!
+                    {statusInfo.message}
                   </h3>
-                  <p className="text-muted-foreground text-sm mt-1">It starts on: {new Date(draw.startDate).toLocaleString()}</p>
-                  <Countdown endDate={draw.startDate} />
+                  {statusInfo.countdownDate && <Countdown endDate={statusInfo.countdownDate} />}
               </div>
           )}
           <div className="text-center space-y-6">
@@ -280,7 +296,7 @@ export default function DrawDetailPage() {
                     onChange={(e) => handleInputChange(index, e.target.value)}
                     onKeyDown={(e) => handleKeyDown(index, e)}
                     className="w-12 h-14 text-center text-2xl font-bold rounded-md border bg-muted/50 text-foreground focus:ring-2 focus:ring-ring"
-                    disabled={!isDrawActive}
+                    disabled={!statusInfo.isActive}
                   />
                 ))}
               </div>
@@ -288,7 +304,7 @@ export default function DrawDetailPage() {
             
             <p className="text-sm text-muted-foreground">OR</p>
             
-            <Button variant="outline" onClick={generateRandomTicket} disabled={!isDrawActive}>
+            <Button variant="outline" onClick={generateRandomTicket} disabled={!statusInfo.isActive}>
               <Dices className="mr-2 h-4 w-4"/> Generate Random Ticket
             </Button>
           </div>
@@ -296,7 +312,7 @@ export default function DrawDetailPage() {
 
         <CardContent>
           <div className="space-y-4">
-            {availableFilteredTickets.length > 0 && isDrawActive && (
+            {availableFilteredTickets.length > 0 && statusInfo.isActive && (
                 <div>
                   <h4 className="font-semibold text-sm flex items-center gap-2 text-muted-foreground mb-2"><Search className="h-4 w-4" /> Available based on your input:</h4>
                   <div className="flex flex-wrap justify-center gap-2">
@@ -308,7 +324,7 @@ export default function DrawDetailPage() {
                   </div>
                 </div>
             )}
-             {availableFilteredTickets.length === 0 && ticketNumbers.every(n => n === '') && isDrawActive && (
+             {availableFilteredTickets.length === 0 && ticketNumbers.every(n => n === '') && statusInfo.isActive && (
                 <div>
                   <h4 className="font-semibold text-sm text-muted-foreground mb-2">Feeling lucky? Try one of these:</h4>
                   <div className="flex flex-wrap justify-center gap-2">
@@ -326,7 +342,7 @@ export default function DrawDetailPage() {
         <CardContent>
           <Button 
             onClick={handlePayment} 
-            disabled={!isTicketComplete || isBuying || !isDrawActive} 
+            disabled={!isTicketComplete || isBuying || !statusInfo.isActive} 
             className="w-full bg-accent text-accent-foreground hover:bg-accent/90 font-bold"
             size="lg"
           >

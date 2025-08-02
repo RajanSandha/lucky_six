@@ -29,6 +29,7 @@ export type Draw = {
   winnerId?: string;
   imageUrl?: string;
   status?: 'upcoming' | 'active' | 'awaiting_announcement' | 'announcing' | 'finished';
-  roundWinners?: Record<number, string[]>; // New field to store pre-selected winners
+  roundWinners?: Record<number, string[]>; // Stores all winners for each round, selected at once.
+  announcedWinners?: Record<number, string[]>; // Stores winners as they are announced dramatically.
   [key: string]: any;
 };

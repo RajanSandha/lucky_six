@@ -54,7 +54,8 @@ const getDrawStatus = (draw: Draw): { text: string; variant: "default" | "second
   const now = new Date();
   const startDate = new Date(draw.startDate);
   const endDate = new Date(draw.endDate);
-  
+  const announcementDate = new Date(draw.announcementDate);
+
   if (draw.status === 'finished') {
     return { text: "Completed", variant: "secondary" };
   } else if (draw.status === 'announcing') {
@@ -63,9 +64,12 @@ const getDrawStatus = (draw: Draw): { text: string; variant: "default" | "second
     return { text: "Upcoming", variant: "outline", className: "border-blue-500/50 text-blue-600" };
   } else if (now >= startDate && now <= endDate) {
     return { text: "Active", variant: "default", className: "bg-green-500/20 text-green-700" };
-  } else if (now > endDate) {
-     return { text: "Awaiting Winner", variant: "outline", className: "border-yellow-500/50 text-yellow-700" };
-  } else {
+  } else if (now > endDate && now < announcementDate) {
+     return { text: "Awaiting Announcement", variant: "outline", className: "border-yellow-500/50 text-yellow-700" };
+  } else if (now >= announcementDate) {
+    return { text: "Announcing", variant: "default", className: "bg-purple-500/20 text-purple-700 animate-pulse" };
+  }
+  else {
      return { text: "Unknown", variant: "outline"};
   }
 }
@@ -242,7 +246,7 @@ function DrawsAdminPage() {
                 {!isLoading && draws.map((draw) => {
                     const status = getDrawStatus(draw);
                     const isEditable = status.text === "Upcoming";
-                    const canAnnounce = status.text === "Awaiting Winner" || status.text === "Announcing";
+                    const canAnnounce = status.text === "Awaiting Announcement" || status.text === "Announcing" || status.text === "Completed";
                     const canBeDeleted = !draw.status || draw.status === 'upcoming'; 
 
                     return (
@@ -262,7 +266,7 @@ function DrawsAdminPage() {
                                 <Button asChild size="sm" className="bg-accent text-accent-foreground hover:bg-accent/90">
                                   <Link href={`/admin/draws/${draw.id}/announce`}>
                                       <Megaphone className="mr-2 h-4 w-4" />
-                                      View Ceremony
+                                      {status.text === 'Completed' ? 'View Results' : 'View Ceremony'}
                                   </Link>
                                 </Button>
                               )}

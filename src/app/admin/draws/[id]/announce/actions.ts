@@ -5,16 +5,7 @@ import { collection, query, where, getDocs, doc, updateDoc, getDoc, writeBatch }
 import { revalidatePath } from 'next/cache';
 import type { Ticket, User, Draw } from '@/lib/types';
 
-// Fisher-Yates shuffle algorithm
-const shuffleArray = (array: any[]) => {
-  for (let i = array.length - 1; i > 0; i--) {
-    const j = Math.floor(Math.random() * (i + 1));
-    [array[i], array[j]] = [array[j], array[i]];
-  }
-  return array;
-};
-
-
+// This function is kept for fetching ticket details, but winner selection is now in the scheduler flow.
 export async function getTicketsForDraw(drawId: string): Promise<(Ticket & { user: User | null })[]> {
     const ticketsRef = collection(db, 'tickets');
     const q = query(ticketsRef, where('drawId', '==', drawId));
@@ -45,6 +36,15 @@ export async function getTicketsForDraw(drawId: string): Promise<(Ticket & { use
 
 // This function is no longer called from the client, but is used by the scheduler flow.
 export async function selectRoundWinners(drawId: string, ticketPool: {id: string}[]) {
+    // Fisher-Yates shuffle algorithm
+    const shuffleArray = (array: any[]) => {
+      for (let i = array.length - 1; i > 0; i--) {
+        const j = Math.floor(Math.random() * (i + 1));
+        [array[i], array[j]] = [array[j], array[i]];
+      }
+      return array;
+    };
+
     const shuffledPool = shuffleArray([...ticketPool]);
     
     const round1Winners = shuffledPool.slice(0, 20).map(t => t.id);
