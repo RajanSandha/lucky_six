@@ -26,6 +26,13 @@ const generate6DigitString = () => Array.from({ length: 6 }, () => Math.floor(Ma
 
 function ReferralDialog({ open, onOpenChange, referralLink }: { open: boolean, onOpenChange: (open: boolean) => void, referralLink: string }) {
     const { toast } = useToast();
+    const [isShareSupported, setIsShareSupported] = useState(false);
+
+    useEffect(() => {
+        if (typeof navigator !== 'undefined' && navigator.share) {
+            setIsShareSupported(true);
+        }
+    }, []);
 
     const copyToClipboard = (text: string) => {
         navigator.clipboard.writeText(text);
@@ -54,10 +61,12 @@ function ReferralDialog({ open, onOpenChange, referralLink }: { open: boolean, o
                             </Button>
                         </div>
                     </div>
-                     <Button className="w-full" onClick={() => navigator.share({ title: 'Join me on Lucky Six!', text: 'Join me on Lucky Six and get a free ticket!', url: referralLink })}>
-                        <Share2 className="mr-2 h-4 w-4" />
-                        Share Link
-                    </Button>
+                     {isShareSupported && (
+                        <Button className="w-full" onClick={() => navigator.share({ title: 'Join me on Lucky Six!', text: 'Join me on Lucky Six and get a free ticket!', url: referralLink })}>
+                            <Share2 className="mr-2 h-4 w-4" />
+                            Share Link
+                        </Button>
+                     )}
                 </div>
                  <DialogClose asChild>
                     <Button type="button" variant="secondary">Close</Button>
