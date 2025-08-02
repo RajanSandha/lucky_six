@@ -2,7 +2,7 @@
 "use client";
 
 import * as React from 'react';
-import { useState, useEffect, useMemo, useCallback } from 'react';
+import { useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import type { Draw, Ticket, User } from '@/lib/types';
 import { TicketCard } from './TicketCard';
 import { useWindowSize } from 'react-use';
@@ -18,7 +18,7 @@ const STAGE_CONFIG = {
   1: { title: 'Qualifier Round', subTitle: 'Revealing the Top 20', count: 20 },
   2: { title: 'Quarter-Final', subTitle: 'Revealing the Top 10', count: 10 },
   3: { title: 'Semi-Final', subTitle: 'Revealing the 3 Finalists', count: 3 },
-  4: { title: 'Final Round!', subTitle: 'Revealing the Grand Winner!', count: 1 },
+  4: { title: 'Final Round!', subTitle: 'The Grand Winner!', count: 1 },
 };
 
 type FullTicket = Ticket & { user: User | null };
@@ -156,7 +156,6 @@ function AnnounceWinnerComponent({ params }: { params: { id: string } }) {
     const [revealedWinnerIds, setRevealedWinnerIds] = useState<Set<string>>(new Set());
     
     const { user } = useAuth();
-    const prevAnnouncedWinnersRef = React.useRef<Record<number, string[]>>({});
 
     useEffect(() => {
         if (!params.id) {
@@ -213,7 +212,7 @@ function AnnounceWinnerComponent({ params }: { params: { id: string } }) {
 
 
     // Effect to process draw updates and manage ceremony flow
-     useEffect(() => {
+    useEffect(() => {
         if (!draw) return;
 
         // Determine current view state based on draw status
@@ -222,39 +221,27 @@ function AnnounceWinnerComponent({ params }: { params: { id: string } }) {
                 setViewState('finished');
              }
         } else if (draw.status === 'announcing' || (draw.announcedWinners && Object.keys(draw.announcedWinners).length > 0)) {
-            const announcedRounds = Object.keys(draw.announcedWinners || {}).map(Number);
-            const highestAnnouncedRound = Math.max(0, ...announcedRounds);
-            const announcedInHighestRound = draw.announcedWinners?.[highestAnnouncedRound] || [];
-            
-            // Check if Round 3 is fully announced to trigger finale
-            const semiFinalists = draw.announcedWinners?.[3] || [];
-            if (semiFinalists.length === STAGE_CONFIG[3].count) {
+            const semiFinalists = draw.roundWinners?.[3] || [];
+            const announcedSemiFinalists = draw.announcedWinners?.[3] || [];
+            if (semiFinalists.length > 0 && announcedSemiFinalists.length === semiFinalists.length) {
                 setViewState('finale');
                 return;
             }
 
             setViewState('announcing');
 
-            const prevAnnounced = prevAnnouncedWinnersRef.current;
-            const allNewWinners = Object.entries(draw.announcedWinners || {})
-                .flatMap(([round, winners]) => winners.map(id => ({ round: Number(round), id })));
-            
-            const allPrevWinners = Object.entries(prevAnnounced)
-                 .flatMap(([round, winners]) => winners.map(id => ({ round: Number(round), id })));
+            const allAnnouncedWinners = Object.values(draw.announcedWinners || {}).flat();
+            const newWinner = allAnnouncedWinners.find(id => !revealedWinnerIds.has(id) && id !== revealingTicketId);
 
-            const newWinner = allNewWinners.find(newW => !allPrevWinners.some(prevW => prevW.id === newW.id));
-            
-            if (newWinner && !revealingTicketId) {
-                setRevealingTicketId(newWinner.id);
+            if (newWinner) {
+                setRevealingTicketId(newWinner);
             }
             
         } else {
              setViewState('awaiting');
         }
 
-        prevAnnouncedWinnersRef.current = draw.announcedWinners || {};
-
-    }, [draw, viewState, revealingTicketId]);
+    }, [draw, viewState, revealedWinnerIds, revealingTicketId]);
 
 
     const handleRevealComplete = useCallback((ticketId: string) => {
@@ -294,7 +281,9 @@ function AnnounceWinnerComponent({ params }: { params: { id: string } }) {
     
     let currentStage = 1;
     if(draw.announcedWinners) {
-        for(const s of [1, 2, 3]) {
+        const roundKeys = Object.keys(draw.roundWinners || {}).map(Number).sort();
+        for(const s of roundKeys) {
+            if (s > 3) continue; // Only process up to semi-finals here
             const stageConfig = STAGE_CONFIG[s as keyof typeof STAGE_CONFIG];
             const announcedForStage = draw.announcedWinners[s] || [];
             if (announcedForStage.length < stageConfig.count) {
@@ -308,7 +297,7 @@ function AnnounceWinnerComponent({ params }: { params: { id: string } }) {
     }
     const stageConfig = STAGE_CONFIG[currentStage as keyof typeof STAGE_CONFIG];
 
-    if (!stageConfig) {
+    if (!stageConfig || currentStage > 3) {
         // This can happen briefly between semi-finals ending and finale starting
         return <div className="flex h-screen items-center justify-center"><p>Preparing finale...</p></div>;
     }
@@ -365,13 +354,18 @@ function AnnounceWinnerComponent({ params }: { params: { id: string } }) {
                         {userTickets.map(ticket => {
                             const isAnnounced = allAnnouncedIdsSet.has(ticket.id);
                             let isEliminated = false;
-                            if(!isAnnounced) {
+                            
+                            // Determine if the round the ticket *could have* won in is already complete.
+                            if (!isAnnounced) {
                                 for(let i=1; i < currentStage; i++) {
                                     const stageConf = STAGE_CONFIG[i as keyof typeof STAGE_CONFIG];
-                                    const announcedForStage = draw.announcedWinners?.[i] || [];
-                                    if(announcedForStage.length === stageConf.count) {
-                                        isEliminated = true;
-                                        break;
+                                    const announcedInStage = draw.announcedWinners?.[i] || [];
+                                    const allWinnersForStage = draw.roundWinners?.[i] || [];
+
+                                    // If a round is fully announced and the user's ticket wasn't in it, they're out.
+                                    if (announcedInStage.length === stageConf.count && !allWinnersForStage.includes(ticket.id)) {
+                                         isEliminated = true;
+                                         break;
                                     }
                                 }
                             }
@@ -398,7 +392,7 @@ function AnnounceWinnerComponent({ params }: { params: { id: string } }) {
                     />
                 }
                 
-                // Past rounds, in descending order
+                {/* Past rounds, in descending order */}
                 {Array.from({ length: currentStage - 1 }, (_, i) => currentStage - 1 - i).map(stageNum => {
                      const stageData = STAGE_CONFIG[stageNum as keyof typeof STAGE_CONFIG];
                      const announcedForStage = getTicketsByIds(draw.announcedWinners?.[stageNum] || [], allTickets)
@@ -425,5 +419,3 @@ function AnnounceWinnerComponent({ params }: { params: { id: string } }) {
 export const AnnounceWinner = ({ params }: { params: { id: string } }) => {
     return <AnnounceWinnerComponent params={params} />;
 };
-
-    
