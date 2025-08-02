@@ -10,7 +10,7 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Ticket, Star, Users, ArrowRight, Gift } from "lucide-react";
+import { Ticket, Star, Users, ArrowRight, Gift, Clock } from "lucide-react";
 import { Countdown } from "@/components/Countdown";
 import { RecentWinners } from "@/components/RecentWinners";
 import { getDraws } from "./admin/draws/actions";
@@ -36,16 +36,24 @@ const getHomepageDraw = (allDraws: Draw[]): Draw | null => {
     return null; // No active or upcoming draws
 }
 
-const getDrawStatusInfo = (draw: Draw): { isUpcoming: boolean; isActive: boolean; countdownTo: 'start' | 'end'; countdownDate: Date } => {
+const getDrawStatusInfo = (draw: Draw): { text: string; countdownDate: Date | null, isActionable: boolean, countdownTo: 'start' | 'end' | null } => {
     const now = new Date();
     const startDate = new Date(draw.startDate);
     const endDate = new Date(draw.endDate);
-    
-    if (now < startDate) {
-        return { isUpcoming: true, isActive: false, countdownTo: 'start', countdownDate: startDate };
+
+    if (draw.status === 'finished' || now > new Date(draw.announcementDate)) {
+        return { text: "Completed", countdownDate: null, isActionable: false, countdownTo: null };
     }
-    
-    return { isUpcoming: false, isActive: true, countdownTo: 'end', countdownDate: endDate };
+    if (draw.status === 'announcing') {
+        return { text: "Announcing", countdownDate: null, isActionable: true, countdownTo: null };
+    }
+    if (now < startDate) {
+        return { text: "Upcoming", countdownDate: startDate, isActionable: false, countdownTo: 'start' };
+    }
+    if (now >= startDate && now <= endDate) {
+        return { text: "Active", countdownDate: endDate, isActionable: true, countdownTo: 'end' };
+    }
+    return { text: "Awaiting Announcement", countdownDate: new Date(draw.announcementDate), isActionable: false, countdownTo: null };
 };
 
 
@@ -124,6 +132,14 @@ export default async function Home() {
                             Referral
                         </Badge>
                     )}
+                    {statusInfo.text === 'Upcoming' && (
+                        <div className="absolute inset-0 bg-black/50 flex items-center justify-center">
+                            <Badge variant="secondary" className="text-sm bg-background/80 text-foreground">
+                                <Clock className="mr-2 h-4 w-4" />
+                                {statusInfo.text}
+                            </Badge>
+                        </div>
+                    )}
                 </div>
             )}
               <CardHeader>
@@ -134,15 +150,19 @@ export default async function Home() {
                 <div className="text-center">
                   <p className="text-sm text-muted-foreground">Prize Pool</p>
                   <p className="text-5xl font-bold font-headline tracking-tight text-primary">₹{mainDraw.prize.toLocaleString('en-IN')}</p>
-                  <p className="text-lg text-muted-foreground mt-4">{statusInfo.isUpcoming ? 'Draw starts in:' : 'Draw ends in:'}</p>
-                  <Countdown endDate={statusInfo.countdownDate} />
+                   {statusInfo.countdownDate && (
+                       <>
+                        <p className="text-lg text-muted-foreground mt-4">{statusInfo.countdownTo === 'start' ? 'Draw starts in:' : 'Draw ends in:'}</p>
+                        <Countdown endDate={statusInfo.countdownDate} />
+                       </>
+                   )}
                 </div>
               </CardContent>
               <CardFooter className="flex justify-center">
-                <Button asChild className="bg-accent text-accent-foreground hover:bg-accent/90 w-full sm:w-auto font-bold" disabled={statusInfo.isUpcoming}>
+                <Button asChild className="bg-accent text-accent-foreground hover:bg-accent/90 w-full sm:w-auto font-bold" disabled={!statusInfo.isActionable}>
                   <Link href={`/draws/${mainDraw.id}`}>
                     <Ticket className="mr-2 h-5 w-5" />
-                    {statusInfo.isUpcoming ? 'View Details' : 'Buy a Ticket Now'}
+                    {statusInfo.text === 'Upcoming' ? 'View Details' : 'Buy a Ticket Now'}
                   </Link>
                 </Button>
               </CardFooter>
