@@ -6,7 +6,7 @@ import type { Draw, Ticket, User } from '@/lib/types';
 import { TicketCard } from './TicketCard';
 import { getDraw } from '@/app/admin/draws/actions';
 import { useToast } from '@/hooks/use-toast';
-import { Loader2, Crown, Hourglass, CheckCircle, Award } from 'lucide-react';
+import { Loader2, Crown, Hourglass, CheckCircle, Award, Star } from 'lucide-react';
 import { useWindowSize } from 'react-use';
 import Confetti from 'react-confetti';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from './ui/card';
@@ -27,6 +27,64 @@ type FullTicket = Ticket & { user: User | null };
 const getTicketsByIds = (ids: string[], allTickets: FullTicket[]): FullTicket[] => {
     return ids.map(id => allTickets.find(t => t.id === id)).filter(Boolean) as FullTicket[];
 }
+
+const positiveMessages = [
+    "The next winner could be you!",
+    "Feeling lucky?",
+    "Get ready for the big reveal!",
+    "Your ticket might be the one!",
+    "Anything is possible!",
+    "Good luck to all participants!",
+    "Stay tuned for the winning number!",
+    "The excitement is building...",
+];
+
+function AwaitingCeremonyDisplay({ draw, allTickets }: { draw: Draw, allTickets: FullTicket[] }) {
+    const [messageIndex, setMessageIndex] = useState(0);
+
+    useEffect(() => {
+        const interval = setInterval(() => {
+            setMessageIndex(prevIndex => (prevIndex + 1) % positiveMessages.length);
+        }, 3000); // Change message every 3 seconds
+        return () => clearInterval(interval);
+    }, []);
+
+    return (
+        <div className="container mx-auto py-12 px-4">
+            <div className="text-center mb-8">
+                <h1 className="text-3xl font-bold font-headline text-primary">The Ceremony Is About to Begin!</h1>
+                 <p className="text-muted-foreground mt-2">Winner selection starts on {new Date(draw.announcementDate).toLocaleString()}</p>
+            </div>
+             <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                 <main className="lg:col-span-2">
+                    <Card>
+                        <CardHeader>
+                            <CardTitle>Ticket Pool ({allTickets.length})</CardTitle>
+                            <CardDescription>All tickets participating in this draw.</CardDescription>
+                        </CardHeader>
+                        <CardContent className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-6 lg:grid-cols-8 gap-2">
+                            {allTickets.map(ticket => (
+                                <TicketCard
+                                    key={ticket.id}
+                                    ticket={ticket}
+                                />
+                            ))}
+                        </CardContent>
+                    </Card>
+                 </main>
+                 <aside>
+                    <Card className="sticky top-24 text-center p-6 bg-primary/10 border-primary/20 h-full flex flex-col justify-center items-center">
+                        <Star className="h-16 w-16 text-primary animate-pulse mb-4"/>
+                        <p className="text-xl font-semibold font-headline text-primary-foreground transition-all duration-500">
+                            {positiveMessages[messageIndex]}
+                        </p>
+                    </Card>
+                 </aside>
+             </div>
+        </div>
+    )
+}
+
 
 function FinishedDrawDisplay({ draw, allTickets }: { draw: Draw, allTickets: FullTicket[] }) {
     
@@ -125,19 +183,23 @@ function AnnounceWinnerComponent({ initialDraw, allTickets }: { initialDraw: Dra
   }
 
   if (draw.status !== 'announcing' || !draw.roundWinners) {
-    return (
-       <div className="container mx-auto py-12 px-4 text-center">
-            <Hourglass className="h-16 w-16 mx-auto text-primary mb-4" />
-            <h1 className="text-3xl font-bold font-headline">The ceremony has not yet begun.</h1>
-            <p className="text-muted-foreground mt-2">Winner selection will start automatically on {new Date(draw.announcementDate).toLocaleString()}. You can manually trigger this from the Draws Management page.</p>
-       </div>
-    )
+    return <AwaitingCeremonyDisplay draw={draw} allTickets={allTickets} />
   }
     
   if (!stageConfig) {
+      // This case handles when the ceremony is finished (currentStage = 5) but status is not yet 'finished'
       return (
         <div className="flex h-screen items-center justify-center">
-          <Loader2 className="h-16 w-16 animate-spin text-primary" />
+            <Confetti width={width} height={height} recycle={false} numberOfPieces={500} />
+            <Card className="text-center p-8">
+                <CardHeader>
+                     <div className="mx-auto bg-green-100 dark:bg-green-900/50 p-4 rounded-full w-fit">
+                        <CheckCircle className="h-12 w-12 text-green-600"/>
+                    </div>
+                    <CardTitle className="text-2xl mt-4">Ceremony Complete!</CardTitle>
+                    <CardDescription>All winners have been announced.</CardDescription>
+                </CardHeader>
+            </Card>
         </div>
       )
   }
@@ -273,3 +335,5 @@ const AnnounceWinnerWithData = ({ params }: { params: { id: string } }) => {
 };
 
 export const AnnounceWinner = withAdminAuth(AnnounceWinnerWithData);
+
+    
