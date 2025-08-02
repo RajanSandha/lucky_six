@@ -10,11 +10,12 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Ticket, Star, Users, ArrowRight } from "lucide-react";
+import { Ticket, Star, Users, ArrowRight, Gift } from "lucide-react";
 import { Countdown } from "@/components/Countdown";
 import { RecentWinners } from "@/components/RecentWinners";
 import { getDraws } from "./admin/draws/actions";
 import type { Draw } from "@/lib/types";
+import { Badge } from "@/components/ui/badge";
 
 const getHomepageDraw = (allDraws: Draw[]): Draw | null => {
     const now = new Date();
@@ -117,6 +118,12 @@ export default async function Home() {
                {mainDraw.imageUrl && (
                 <div className="relative h-64 w-full">
                     <Image src={mainDraw.imageUrl} alt={mainDraw.name} layout="fill" objectFit="cover" data-ai-hint="lottery prize" />
+                    {mainDraw.referralAvailable && (
+                        <Badge className="absolute top-2 right-2 bg-primary text-primary-foreground">
+                            <Gift className="mr-1 h-3 w-3" />
+                            Referral
+                        </Badge>
+                    )}
                 </div>
             )}
               <CardHeader>

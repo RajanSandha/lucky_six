@@ -10,7 +10,7 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Ticket, Search, Clock } from "lucide-react";
+import { Ticket, Search, Clock, Gift } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { getDraws } from "../admin/draws/actions";
 import { Countdown } from "@/components/Countdown";
@@ -71,6 +71,12 @@ export default async function DrawsPage() {
                 {draw.imageUrl && (
                   <div className="relative h-48 w-full">
                     <Image src={draw.imageUrl} alt={draw.name} layout="fill" objectFit="cover" data-ai-hint="lottery ticket" />
+                     {draw.referralAvailable && (
+                        <Badge className="absolute top-2 right-2 bg-primary text-primary-foreground">
+                            <Gift className="mr-1 h-3 w-3" />
+                            Referral
+                        </Badge>
+                    )}
                     {statusInfo.isUpcoming && (
                       <div className="absolute inset-0 bg-black/50 flex items-center justify-center">
                         <Badge variant="secondary" className="text-sm bg-background/80 text-foreground">
