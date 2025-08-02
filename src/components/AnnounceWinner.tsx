@@ -67,7 +67,7 @@ function AwaitingCeremonyDisplay({ draw, tickets, hasMoreTickets }: { draw: Draw
             <div className="block lg:hidden mb-6">
                  <Card className="text-center p-6 bg-primary/10 border-primary/20 flex flex-col justify-center items-center h-48">
                     <Star className="h-16 w-16 text-primary animate-pulse mb-4"/>
-                    <p className={cn("text-xl font-semibold font-headline text-primary-foreground transition-opacity duration-500", isFading ? "opacity-0" : "opacity-100")}>
+                    <p className={cn("text-xl font-semibold font-headline text-primary transition-opacity duration-500", isFading ? "opacity-0" : "opacity-100")}>
                         {positiveMessages[messageIndex]}
                     </p>
                 </Card>
@@ -109,7 +109,7 @@ function AwaitingCeremonyDisplay({ draw, tickets, hasMoreTickets }: { draw: Draw
                     <div className="sticky top-24">
                         <Card className="text-center p-6 bg-primary/10 border-primary/20 h-96 flex flex-col justify-center items-center">
                             <Star className="h-16 w-16 text-primary animate-pulse mb-4"/>
-                            <p className={cn("text-xl font-semibold font-headline text-primary-foreground transition-opacity duration-500", isFading ? "opacity-0" : "opacity-100")}>
+                            <p className={cn("text-xl font-semibold font-headline text-primary transition-opacity duration-500", isFading ? "opacity-0" : "opacity-100")}>
                                 {positiveMessages[messageIndex]}
                             </p>
                         </Card>
