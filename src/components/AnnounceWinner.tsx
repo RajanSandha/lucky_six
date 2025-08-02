@@ -13,6 +13,9 @@ import { db } from '@/lib/firebase';
 import { doc, onSnapshot, collection, query, where, getDocs, getDoc } from 'firebase/firestore';
 import { useAuth } from '@/context/AuthContext';
 import { cn } from '@/lib/utils';
+import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from './ui/accordion';
+import { Avatar, AvatarFallback } from './ui/avatar';
+
 
 const STAGE_CONFIG = {
   1: { title: 'Qualifier Round', subTitle: 'Revealing the Top 20', count: 20 },
@@ -51,41 +54,78 @@ function AwaitingCeremonyDisplay({ draw }: { draw: Draw }) {
     )
 }
 
-function FinishedDrawDisplay({ draw, allTickets }: { draw: Draw, allTickets: FullTicket[] }) {
-    
-    const finalWinnerId = draw.announcedWinners?.[4]?.[0] || draw.winningTicketId || '';
-    const finalWinner = allTickets.find(t => t.id === finalWinnerId);
+function FinishedDrawDisplay({ draw, allTickets }: { draw: Draw; allTickets: FullTicket[] }) {
+  const finalWinnerId = draw.winningTicketId || draw.announcedWinners?.[4]?.[0] || '';
+  const finalWinnerTicket = allTickets.find(t => t.id === finalWinnerId);
+  const winnerName = finalWinnerTicket?.user?.name || 'Anonymous';
+  const winnerInitials = winnerName.split(' ').map(n => n[0]).join('');
 
-    return (
-        <div className="container mx-auto py-12 px-4">
-            <div className="text-center mb-8">
-                <h1 className="text-3xl font-bold font-headline text-primary">{draw.name} - Results</h1>
-                <p className="text-muted-foreground mt-2">The ceremony concluded on {new Date(draw.announcementDate).toLocaleString()}</p>
-            </div>
+  const round3Winners = getTicketsByIds(draw.roundWinners?.[3] || [], allTickets);
+  const round2Winners = getTicketsByIds(draw.roundWinners?.[2] || [], allTickets);
+  const round1Winners = getTicketsByIds(draw.roundWinners?.[1] || [], allTickets);
 
-            <Card className="max-w-4xl mx-auto">
-                <CardHeader className="text-center">
-                    <div className="mx-auto bg-primary/10 p-6 rounded-full w-fit mb-4">
-                        <Crown className="h-16 w-16 text-primary"/>
+  return (
+    <div className="container mx-auto py-12 px-4">
+      <div className="text-center mb-8">
+        <h1 className="text-3xl font-bold font-headline text-primary">{draw.name} - Results</h1>
+        <p className="text-muted-foreground mt-2">The ceremony concluded on {new Date(draw.announcementDate).toLocaleString()}</p>
+      </div>
+
+      <Card className="max-w-4xl mx-auto shadow-2xl overflow-hidden border-accent">
+        <div className="p-8 bg-gradient-to-br from-primary/80 to-accent/80 text-primary-foreground">
+           <CardHeader className="text-center p-0">
+                <div className="mx-auto bg-background/20 p-4 rounded-full w-fit mb-4 backdrop-blur-sm">
+                    <Crown className="h-12 w-12 text-white"/>
+                </div>
+                <CardTitle className="text-4xl font-headline tracking-tight">Grand Prize Winner</CardTitle>
+            </CardHeader>
+             <CardContent className="text-center p-0 mt-6">
+                {finalWinnerTicket ? (
+                    <div className="flex flex-col items-center gap-4">
+                        <Avatar className="h-24 w-24 border-4 border-white/50">
+                            <AvatarFallback className="bg-primary/50 text-3xl font-bold">{winnerInitials}</AvatarFallback>
+                        </Avatar>
+                        <h3 className="text-3xl font-bold font-headline">{winnerName}</h3>
+                        <div className="bg-background/20 backdrop-blur-sm rounded-lg p-4 w-full max-w-sm">
+                             <p className="text-sm opacity-80 mb-1">Winning Ticket</p>
+                             <p className="text-4xl font-mono tracking-widest">{finalWinnerTicket.numbers}</p>
+                        </div>
                     </div>
-                    <CardTitle className="text-3xl text-accent-foreground font-headline">Grand Prize Winner</CardTitle>
-                    {finalWinner && <div className="mt-4"><TicketCard ticket={finalWinner} isWinner={true} /></div>}
-                </CardHeader>
-                <CardContent className="text-center">
-                    {finalWinner?.user?.name ? (
-                        <p className="text-2xl mt-4 font-semibold">
-                            Congratulations, {finalWinner.user.name}!
-                        </p>
-                    ): (
-                         <p className="text-2xl mt-4 font-semibold">
-                            Congratulations to the winner!
-                        </p>
-                    )}
-                </CardContent>
-            </Card>
+                ): (
+                    <p>Winner details not available.</p>
+                )}
+            </CardContent>
         </div>
-    )
+      </Card>
+
+      <div className="max-w-4xl mx-auto mt-8">
+        <h3 className="text-2xl font-bold font-headline mb-4 text-center">Round Results</h3>
+        <Accordion type="single" collapsible className="w-full">
+          <AccordionItem value="item-1">
+            <AccordionTrigger className="text-lg font-semibold">{STAGE_CONFIG[3].title} ({round3Winners.length} Winners)</AccordionTrigger>
+            <AccordionContent className="grid grid-cols-2 sm:grid-cols-3 gap-4 p-4">
+              {round3Winners.map(ticket => <TicketCard key={ticket.id} ticket={ticket} isSelected />)}
+            </AccordionContent>
+          </AccordionItem>
+          <AccordionItem value="item-2">
+            <AccordionTrigger className="text-lg font-semibold">{STAGE_CONFIG[2].title} ({round2Winners.length} Winners)</AccordionTrigger>
+            <AccordionContent className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4 p-4">
+              {round2Winners.map(ticket => <TicketCard key={ticket.id} ticket={ticket} />)}
+            </AccordionContent>
+          </AccordionItem>
+          <AccordionItem value="item-3">
+            <AccordionTrigger className="text-lg font-semibold">{STAGE_CONFIG[1].title} ({round1Winners.length} Winners)</AccordionTrigger>
+            <AccordionContent className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4 p-4">
+              {round1Winners.map(ticket => <TicketCard key={ticket.id} ticket={ticket} />)}
+            </AccordionContent>
+          </AccordionItem>
+        </Accordion>
+      </div>
+
+    </div>
+  )
 }
+
 
 function GrandFinale({ finalists, winner, onComplete }: { finalists: FullTicket[], winner: FullTicket | null, onComplete: () => void }) {
     const [countdown, setCountdown] = useState(15);
@@ -184,7 +224,7 @@ function AnnounceWinnerComponent({ params }: { params: { id: string } }) {
                     return { ...ticketData, user: userData, purchaseDate: ticketData.purchaseDate };
                 }));
                 setAllTickets(allTicketsData);
-            } catch (e: any) {
+            } catch (e: any) => {
                 setError(`Failed to load ticket data: ${e.message}`);
             } finally {
                  setLoading(false);
@@ -440,3 +480,5 @@ function AnnounceWinnerComponent({ params }: { params: { id: string } }) {
 export const AnnounceWinner = ({ params }: { params: { id: string } }) => {
     return <AnnounceWinnerComponent params={params} />;
 };
+
+    
