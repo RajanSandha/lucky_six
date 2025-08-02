@@ -537,4 +537,4 @@ export function AnnounceWinner({ params }: { params: { id: string } }) {
             </div>
         </div>
     );
-};
+}
