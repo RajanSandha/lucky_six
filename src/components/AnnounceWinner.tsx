@@ -11,7 +11,6 @@ import { Loader2, Crown, CheckCircle, Star, MoreHorizontal } from 'lucide-react'
 import { useWindowSize } from 'react-use';
 import Confetti from 'react-confetti';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from './ui/card';
-import withAdminAuth from './withAdminAuth';
 import { db } from '@/lib/firebase';
 import { doc, onSnapshot, collection, query, where, getDocs, getDoc, limit } from 'firebase/firestore';
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from './ui/accordion';
@@ -68,7 +67,7 @@ function AwaitingCeremonyDisplay({ draw, tickets, hasMoreTickets }: { draw: Draw
             <div className="block lg:hidden mb-6">
                  <Card className="text-center p-6 bg-primary/10 border-primary/20 flex flex-col justify-center items-center h-48">
                     <Star className="h-16 w-16 text-primary animate-pulse mb-4"/>
-                    <p className={cn("text-xl font-semibold font-headline text-primary transition-opacity duration-500", isFading ? "opacity-0" : "opacity-100")}>
+                    <p className={cn("text-xl font-semibold font-headline text-primary-foreground transition-opacity duration-500", isFading ? "opacity-0" : "opacity-100")}>
                         {positiveMessages[messageIndex]}
                     </p>
                 </Card>
@@ -318,7 +317,7 @@ function AnnounceWinnerComponent({ initialDraw, allTickets }: { initialDraw: Dra
   );
 }
 
-const AnnounceWinnerWithData = ({ params }: { params: { id: string } }) => {
+export const AnnounceWinner = ({ params }: { params: { id: string } }) => {
     const [draw, setDraw] = useState<Draw | null>(null);
     const [tickets, setTickets] = useState<FullTicket[] | null>(null);
     const [loading, setLoading] = useState(true);
@@ -378,6 +377,5 @@ const AnnounceWinnerWithData = ({ params }: { params: { id: string } }) => {
     return <AnnounceWinnerComponent initialDraw={draw} allTickets={tickets} />;
 };
 
-export const AnnounceWinner = withAdminAuth(AnnounceWinnerWithData);
-
     
+

@@ -4,7 +4,7 @@ import { getDraw } from '@/app/admin/draws/actions';
 import { notFound } from 'next/navigation';
 import { AnnounceWinner } from '@/components/AnnounceWinner';
 
-export default async function AnnounceWinnerPage({ params }: { params: { id: string } }) {
+export default async function AnnounceWinnerPublicPage({ params }: { params: { id: string } }) {
     const { id } = params;
   
     const draw = await getDraw(id);
@@ -13,7 +13,5 @@ export default async function AnnounceWinnerPage({ params }: { params: { id: str
         notFound();
     }
     
-    // The component now fetches its own data, so we can just render it directly
     return <AnnounceWinner params={{ id }} />;
 }
-

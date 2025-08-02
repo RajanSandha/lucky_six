@@ -1,4 +1,5 @@
 
+
 "use client";
 
 import Link from "next/link";
@@ -58,7 +59,7 @@ export default function AnnouncementsClientPage({ draws }: { draws: Draw[] }) {
                 </CardContent>
                 <CardContent>
                     <Button asChild className="w-full bg-accent text-accent-foreground hover:bg-accent/90">
-                    <Link href={`/admin/draws/${draw.id}/announce`}>
+                    <Link href={`/announcements/${draw.id}`}>
                         <Trophy className="mr-2 h-4 w-4" />
                         View Ceremony
                     </Link>
@@ -100,7 +101,7 @@ export default function AnnouncementsClientPage({ draws }: { draws: Draw[] }) {
                 </CardContent>
                 <CardContent>
                     <Button asChild variant="outline" className="w-full">
-                        <Link href={`/admin/draws/${draw.id}/announce`}>
+                        <Link href={`/announcements/${draw.id}`}>
                            View Results
                         </Link>
                     </Button>
