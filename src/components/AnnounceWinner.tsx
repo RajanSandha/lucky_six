@@ -1,4 +1,5 @@
 
+
 "use client";
 
 import * as React from 'react';
@@ -74,8 +75,8 @@ function AwaitingCeremonyDisplay({ draw }: { draw: Draw }) {
             </div>
              <div className="flex justify-center z-10">
                  <Card className="w-full max-w-lg shadow-2xl bg-background/80 backdrop-blur-sm">
-                    <CardContent className="text-center p-8 flex flex-col items-center gap-6">
-                        <TicketIcon className="w-24 h-24 text-primary animate-pulse" style={{ animationDuration: '1.5s' }} />
+                    <CardContent className="text-center p-12 flex flex-col items-center gap-6">
+                        <TicketIcon className="w-32 h-32 text-primary animate-pulse" style={{ animationDuration: '1.5s' }} />
                         <div className="relative h-8 w-full overflow-hidden">
                              {AwaitingMessages.map((msg, index) => (
                                 <div
