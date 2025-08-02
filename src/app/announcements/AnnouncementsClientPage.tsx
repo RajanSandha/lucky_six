@@ -19,8 +19,13 @@ import { Separator } from "@/components/ui/separator";
 export default function AnnouncementsClientPage({ draws }: { draws: Draw[] }) {
   const now = new Date();
   
-  const upcomingDraws = draws.filter(d => d.status !== 'finished' && new Date(d.announcementDate) > now);
   const announcingDraws = draws.filter(d => d.status === 'announcing' || (new Date(d.announcementDate) <= now && d.status !== 'finished'));
+  const upcomingDraws = draws.filter(d => 
+    d.status !== 'finished' && 
+    new Date(d.endDate) < now && 
+    new Date(d.announcementDate) > now &&
+    !announcingDraws.some(ad => ad.id === d.id) // Exclude draws that are already announcing
+  );
   const pastDraws = draws.filter(d => d.status === 'finished');
 
 
