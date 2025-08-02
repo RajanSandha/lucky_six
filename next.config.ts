@@ -22,6 +22,10 @@ const nextConfig: NextConfig = {
       }
     ],
   },
+  serverActions: {
+    bodySizeLimit: '4mb', // Increase body size limit for file uploads
+    maxDuration: 120, // Increase timeout to 2 minutes
+  }
 };
 
 export default nextConfig;
