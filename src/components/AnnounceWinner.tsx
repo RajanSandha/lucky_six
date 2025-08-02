@@ -250,6 +250,18 @@ function AnnounceWinnerComponent({ initialDraw, allTickets }: { initialDraw: Dra
   // Filter for the logged-in user's tickets for the bottom pool view
   const userTickets = allTickets.filter(t => t.userId === user?.id);
 
+  const SlotMachine = () => (
+     <div className="p-4 rounded-lg border-2 bg-card shadow-lg border-accent animate-pulse flex flex-col items-center justify-center">
+        <div className="flex justify-center gap-1 mb-2">
+            {Array.from({length: 6}).map((_, index) => (
+                <NumberRoller key={index} finalNumber={'0'} isRolling={true} />
+            ))}
+        </div>
+        <div className="h-4 mt-2 bg-muted/50 rounded-full animate-pulse w-3/4 mx-auto"/>
+        <p className="text-sm text-muted-foreground mt-2">Selecting next winner...</p>
+    </div>
+  );
+
   return (
     <div className="container mx-auto py-12 px-4">
       {currentStage === 5 && <Confetti width={width} height={height} recycle={false} numberOfPieces={500} />}
@@ -262,50 +274,46 @@ function AnnounceWinnerComponent({ initialDraw, allTickets }: { initialDraw: Dra
             {stageConfig.subTitle}
         </p>
       </div>
-      
-       {roundIsComplete && currentStage < 4 && (
-            <Card className="mb-6 bg-green-500/10 border-green-500/20">
-                <CardHeader className="text-center">
-                    <div className="mx-auto bg-green-100 dark:bg-green-900/50 p-4 rounded-full w-fit">
-                        <CheckCircle className="h-12 w-12 text-green-600"/>
-                    </div>
-                    <CardTitle className="text-green-700 font-headline mt-4">Round Complete!</CardTitle>
-                    <CardDescription className="text-green-600">Starting next round shortly...</CardDescription>
+
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+          <div className="md:col-span-1">
+              <div className="sticky top-24">
+                  <h3 className="font-headline text-lg mb-2">Next Selection</h3>
+                   {!roundIsComplete ? (
+                        <SlotMachine />
+                    ) : (
+                        <Card className="flex items-center justify-center p-4 h-40 bg-green-500/10 border-green-500/20">
+                            <div className="text-center">
+                                 <CheckCircle className="h-10 w-10 text-green-600 mx-auto mb-2"/>
+                                 <p className="font-semibold text-green-700">Round Complete!</p>
+                                 <p className="text-sm text-muted-foreground">Waiting for next round...</p>
+                            </div>
+                        </Card>
+                    )}
+              </div>
+          </div>
+
+          <div className="md:col-span-2">
+            <Card className="bg-blue-500/5 border-blue-500/20">
+                <CardHeader>
+                    <CardTitle className="font-headline text-blue-600">Selected This Round ({announcedInStage.length} / {stageConfig.count || 0})</CardTitle>
+                    <CardDescription>These tickets have advanced from the current stage.</CardDescription>
                 </CardHeader>
-                <CardContent className="text-center">
-                    <Loader2 className="mx-auto h-8 w-8 animate-spin text-primary" />
+                <CardContent className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-4">
+                    {announcedInStage.map(ticket => (
+                        <TicketCard key={`revealed-${ticket.id}`} ticket={ticket} isSelected={true}/>
+                    ))}
                 </CardContent>
             </Card>
-        )}
-
-      <Card className="lg:col-span-2 bg-blue-500/5 border-blue-500/20 mb-6 sticky top-20 z-10">
-          <CardHeader>
-              <CardTitle className="font-headline text-blue-600">Selected This Round ({announcedInStage.length} / {stageConfig.count || 0})</CardTitle>
-              <CardDescription>These tickets have advanced from the current stage.</CardDescription>
-          </CardHeader>
-          <CardContent className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-5 gap-4">
-             {announcedInStage.map(ticket => (
-                <TicketCard key={`revealed-${ticket.id}`} ticket={ticket} isSelected={true}/>
-             ))}
-             {!roundIsComplete && (
-                 <div className="p-2 md:p-4 rounded-lg border-2 bg-card shadow-sm border-accent animate-pulse">
-                     <div className="flex justify-center gap-1 mb-2">
-                        {Array.from({length: 6}).map((_, index) => (
-                           <NumberRoller key={index} finalNumber={'0'} isRolling={true} />
-                        ))}
-                    </div>
-                     <div className="flex items-center justify-center gap-1 text-xs text-muted-foreground h-4 bg-muted/50 rounded-full animate-pulse w-3/4 mx-auto"/>
-                 </div>
-             )}
-          </CardContent>
-      </Card>
+          </div>
+      </div>
        
-       <Card className="mt-6">
+       <Card className="mt-8">
             <CardHeader>
                 <CardTitle>Your Tickets ({userTickets.length})</CardTitle>
                 <CardDescription>Your tickets participating in this draw.</CardDescription>
             </CardHeader>
-            <CardContent className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-6 lg:grid-cols-8 gap-4">
+            <CardContent className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-4">
                 {userTickets.map(ticket => {
                     const isAnnounced = Object.values(draw.announcedWinners || {}).flat().includes(ticket.id);
                     const allRoundWinners = Object.values(draw.roundWinners || {}).flat();
@@ -388,5 +396,6 @@ export const AnnounceWinner = ({ params }: { params: { id: string } }) => {
 };
 
     
+
 
 
