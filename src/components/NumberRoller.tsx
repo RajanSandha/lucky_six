@@ -20,17 +20,19 @@ export const NumberRoller = ({ finalNumber, isRolling, revealDelay = 0, onReveal
 
   // Handle the random rolling effect
   useEffect(() => {
-    if (isRolling) {
-      const interval = setInterval(() => {
+    let interval: NodeJS.Timeout | undefined;
+    if (isRolling && !isRevealed) {
+      interval = setInterval(() => {
         setDisplayNumber(numbers[Math.floor(Math.random() * numbers.length)]);
       }, 75);
-      return () => clearInterval(interval);
     }
-  }, [isRolling]);
+    return () => {
+      if (interval) clearInterval(interval);
+    };
+  }, [isRolling, isRevealed]);
 
   // Handle the reveal of the final number
   useEffect(() => {
-    setIsRevealed(false); // Reset on new roll
     if (isRolling) {
       const timer = setTimeout(() => {
         setDisplayNumber(finalNumber);
@@ -41,9 +43,6 @@ export const NumberRoller = ({ finalNumber, isRolling, revealDelay = 0, onReveal
       }, revealDelay + 500); // Add a base delay to the staggered delay
 
       return () => clearTimeout(timer);
-    } else {
-      // If not rolling, just show 0 or a reset state
-      setDisplayNumber('0');
     }
   }, [isRolling, finalNumber, revealDelay, onRevealComplete]);
 
@@ -51,7 +50,7 @@ export const NumberRoller = ({ finalNumber, isRolling, revealDelay = 0, onReveal
     <div
       className={cn(
         "w-6 h-8 sm:w-8 sm:h-10 text-lg md:text-xl flex items-center justify-center font-bold rounded-md border-2 bg-gray-800 text-white transition-all duration-300 shadow-inner",
-        isRolling && !isRevealed && "border-primary/50 bg-primary/20 text-primary",
+        isRolling && !isRevealed && "border-primary/50 bg-primary/20 text-primary animate-pulse",
         isRevealed && "bg-accent text-accent-foreground border-accent-foreground",
         className
       )}

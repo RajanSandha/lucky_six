@@ -16,6 +16,8 @@ interface TicketCardProps {
     isWinner?: boolean;
     isSelected?: boolean;
     isHighlighted?: boolean;
+    isRevealing?: boolean;
+    onRevealComplete?: () => void;
 }
 
 export function TicketCard({ 
@@ -25,6 +27,8 @@ export function TicketCard({
     isWinner = false,
     isSelected = false,
     isHighlighted = false,
+    isRevealing = false,
+    onRevealComplete,
 }: TicketCardProps) {
 
     const numbers = ticket.numbers.split('');
@@ -39,14 +43,27 @@ export function TicketCard({
             isHighlighted ? "border-green-500 scale-110" : "",
         )}>
             <div className="flex justify-center gap-1 mb-2">
-                {numbers.map((num, index) => (
-                   <div
-                        key={index}
-                        className={cn("w-5 h-6 sm:w-6 sm:h-8 text-sm md:text-lg flex items-center justify-center font-bold rounded-md border text-primary", isSelected ? "bg-blue-500/10 border-blue-500" : "bg-primary/10 border-primary/20")}
-                    >
-                        {num}
-                    </div>
-                ))}
+                {isRevealing ? (
+                     Array.from({length: 6}).map((_, index) => (
+                         <NumberRoller
+                            key={index}
+                            finalNumber={ticket.numbers[index]}
+                            isRolling={true}
+                            revealDelay={index * 400} // Staggered reveal
+                            onRevealComplete={index === 5 ? onRevealComplete : undefined}
+                        />
+                     ))
+                ) : (
+                    numbers.map((num, index) => (
+                       <div
+                            key={index}
+                            className={cn("w-6 h-8 sm:w-8 sm:h-10 text-sm md:text-lg flex items-center justify-center font-bold rounded-md border",
+                            isSelected ? "bg-blue-500/10 border-blue-500 text-blue-700" : "bg-primary/10 border-primary/20 text-primary")}
+                        >
+                            {num}
+                        </div>
+                    ))
+                )}
             </div>
             <div className="flex items-center justify-center gap-1 text-xs text-muted-foreground">
                 <UserIcon className="h-3 w-3" />
