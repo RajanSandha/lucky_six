@@ -44,12 +44,13 @@ export default function DrawDetailPage() {
 
     if (drawSnap.exists()) {
         const drawData = drawSnap.data();
+        const endDate = drawData.endDate.toDate();
         const fetchedDraw = {
             id: drawSnap.id,
             ...drawData,
             startDate: drawData.startDate.toDate(),
-            endDate: drawData.endDate.toDate(),
-            announcementDate: drawData.announcementDate.toDate(),
+            endDate: endDate,
+            announcementDate: drawData.announcementDate ? drawData.announcementDate.toDate() : new Date(endDate.getTime() + 2 * 60 * 60 * 1000),
         } as Draw;
         setDraw(fetchedDraw);
 
@@ -354,3 +355,5 @@ export default function DrawDetailPage() {
     </div>
   );
 }
+
+    
