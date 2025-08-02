@@ -2,12 +2,12 @@
 "use client";
 
 import * as React from 'react';
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo, useCallback } from 'react';
 import type { Draw, Ticket, User } from '@/lib/types';
 import { TicketCard } from './TicketCard';
 import { useWindowSize } from 'react-use';
 import Confetti from 'react-confetti';
-import { Loader2, Crown, CheckCircle, Star } from 'lucide-react';
+import { Loader2, Crown } from 'lucide-react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from './ui/card';
 import { db } from '@/lib/firebase';
 import { doc, onSnapshot, collection, query, where, getDocs, getDoc, limit } from 'firebase/firestore';
@@ -28,7 +28,8 @@ type FullTicket = Ticket & { user: User | null };
 
 const getTicketsByIds = (ids: string[], allTickets: FullTicket[]): FullTicket[] => {
     if (!ids || !allTickets) return [];
-    return ids.map(id => allTickets.find(t => t.id === id)).filter(Boolean) as FullTicket[];
+    const ticketMap = new Map(allTickets.map(t => [t.id, t]));
+    return ids.map(id => ticketMap.get(id)).filter(Boolean) as FullTicket[];
 }
 
 const positiveMessages = [
@@ -83,8 +84,7 @@ function AwaitingCeremonyDisplay({ draw, tickets, hasMoreTickets }: { draw: Draw
                  </main>
                  <aside className="hidden lg:block">
                     <div className="sticky top-24">
-                        <Card className="text-center p-6 bg-primary/10 border-primary/20 flex flex-col justify-center items-center h-48">
-                            <Star className="h-16 w-16 text-primary animate-pulse mb-4"/>
+                         <Card className="text-center p-6 bg-primary/10 border-primary/20 h-48 flex flex-col justify-center items-center">
                             <p className={cn("text-xl font-semibold font-headline text-primary transition-opacity duration-500", isFading ? "opacity-0" : "opacity-100")}>
                                 {positiveMessages[messageIndex]}
                             </p>
@@ -161,12 +161,12 @@ function GrandFinale({ finalists, onComplete }: { finalists: FullTicket[], onCom
         if (countdown > 0) {
             const timer = setTimeout(() => setCountdown(countdown - 1), 1000);
             return () => clearTimeout(timer);
-        } else {
+        } else if (!revealed) {
             setRevealed(true);
             const finalTimer = setTimeout(onComplete, 5000); // Wait 5s before moving to finished screen
             return () => clearTimeout(finalTimer);
         }
-    }, [countdown, onComplete]);
+    }, [countdown, onComplete, revealed]);
     
     if (!revealed) {
         return (
@@ -197,110 +197,61 @@ function GrandFinale({ finalists, onComplete }: { finalists: FullTicket[], onCom
                 ))}
             </div>
             <p className="text-2xl mt-4 font-semibold">
-                {winner.user?.name || 'Anonymous'} has won the Grand Prize!
+                {winner?.user?.name || 'Anonymous'} has won the Grand Prize!
             </p>
         </div>
     )
 }
 
-export const AnnounceWinner = ({ params }: { params: { id: string } }) => {
-  const [draw, setDraw] = useState<Draw | null>(null);
-  const [allTickets, setAllTickets] = useState<FullTicket[] | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
-  const [revealedDigits, setRevealedDigits] = useState<number>(0);
+const AnnounceWinnerComponent = ({ initialDraw, allTickets }: { initialDraw: Draw, allTickets: FullTicket[] }) => {
+  const [draw, setDraw] = useState<Draw>(initialDraw);
   const [currentAnnouncedWinner, setCurrentAnnouncedWinner] = useState<FullTicket | null>(null);
+  const [isRevealing, setIsRevealing] = useState(false);
   const [showFinale, setShowFinale] = useState(false);
   const [ceremonyComplete, setCeremonyComplete] = useState(false);
-
-  const { width, height } = useWindowSize();
+  const prevAnnouncedWinnersRef = React.useRef<Record<number, string[]>>(initialDraw.announcedWinners || {});
   const { user } = useAuth();
-  const prevAnnouncedWinnersRef = React.useRef<Record<number, string[]>>({});
-
-
+  
+  // Real-time listener for draw updates
   useEffect(() => {
-    if (!params.id) {
-        setError("No draw ID provided.");
-        setLoading(false);
-        return;
-    }
-
-    const unsub = onSnapshot(doc(db, "draws", params.id), (doc) => {
-        if (!doc.exists()) {
-            setError("Draw not found.");
-            setDraw(null);
-            return;
-        };
+    const unsub = onSnapshot(doc(db, "draws", initialDraw.id), (doc) => {
+      if (doc.exists()) {
         const data = doc.data() as any;
         const newDrawData: Draw = {
             ...data,
             id: doc.id,
-            startDate: data.startDate?.toDate ? data.startDate.toDate() : new Date(data.startDate),
-            endDate: data.endDate?.toDate ? data.endDate.toDate() : new Date(data.endDate),
-            announcementDate: data.announcementDate?.toDate ? data.announcementDate.toDate() : new Date(data.announcementDate),
+            startDate: data.startDate?.toDate(),
+            endDate: data.endDate?.toDate(),
+            announcementDate: data.announcementDate?.toDate(),
         };
         setDraw(newDrawData);
+      }
     });
-
-    const fetchTickets = async () => {
-        try {
-            const drawDataSnap = await getDoc(doc(db, 'draws', params.id));
-            if (!drawDataSnap.exists()) {
-              setLoading(false);
-              return;
-            }
-             const drawStatus = drawDataSnap.data().status;
-             const isUpcoming = drawStatus !== 'announcing' && drawStatus !== 'finished';
-             
-             const ticketsQuery = isUpcoming 
-                    ? query(collection(db, 'tickets'), where('drawId', '==', params.id), limit(50))
-                    : query(collection(db, 'tickets'), where('drawId', '==', params.id));
-
-            const ticketsSnapshot = await getDocs(ticketsQuery);
-            const allTicketsData = await Promise.all(ticketsSnapshot.docs.map(async (docSnapshot) => {
-                const ticketData = { id: docSnapshot.id, ...docSnapshot.data() } as Ticket;
-                let userData: User | null = null;
-                if (ticketData.userId) {
-                    const userRef = doc(db, 'users', ticketData.userId);
-                    const userSnap = await getDoc(userRef);
-                    userData = userSnap.exists() ? { id: userSnap.id, ...userSnap.data() } as User : null;
-                }
-                return { ...ticketData, user: userData, purchaseDate: ticketData.purchaseDate };
-            }));
-            setAllTickets(allTicketsData);
-        } catch(e: any) {
-            setError(`Failed to load tickets: ${e.message}`);
-        } finally {
-            setLoading(false);
-        }
-    };
-    
-    fetchTickets();
-    
     return () => unsub();
-  }, [params.id]);
-
+  }, [initialDraw.id]);
 
   // Determine the current stage
-  const currentStage = !draw ? 0 : (() => {
-    if (!draw.announcedWinners) return 1;
-    if (draw.announcedWinners[1]?.length < STAGE_CONFIG[1].count) return 1;
-    if (draw.announcedWinners[2]?.length < STAGE_CONFIG[2].count) return 2;
-    if (draw.announcedWinners[3]?.length < STAGE_CONFIG[3].count) return 3;
-    if (draw.announcedWinners[4]?.length < STAGE_CONFIG[4].count) return 4;
-    return 5; // Ceremony finished
-  })();
-  
+  const currentStage = useMemo(() => {
+    if (!draw.announcedWinners || !draw.roundWinners) return 1;
+    const stageKeys = Object.keys(STAGE_CONFIG).map(Number);
+    for (const stage of stageKeys) {
+        if ((draw.announcedWinners[stage]?.length || 0) < (draw.roundWinners[stage]?.length || 0)) {
+            return stage;
+        }
+    }
+    return 5; // Ceremony finished or transitioning to finished
+  }, [draw.announcedWinners, draw.roundWinners]);
+
   const stageConfig = (currentStage > 0 && currentStage < 5) ? STAGE_CONFIG[currentStage as keyof typeof STAGE_CONFIG] : null;
 
-  // Find the winner that was just announced
+  // Logic to handle new announcements
   useEffect(() => {
-    if (!draw || !draw.announcedWinners || !allTickets) return;
+    if (!draw.announcedWinners || !allTickets) return;
 
     const prevAnnounced = prevAnnouncedWinnersRef.current;
     let newWinnerId: string | null = null;
-
-    // Find which round has a new winner
+    
+    // Find the latest announced winner ID that we haven't processed yet
     for (const round in draw.announcedWinners) {
         const currentRoundWinners = draw.announcedWinners[round];
         const prevRoundWinners = prevAnnounced[round] || [];
@@ -314,48 +265,28 @@ export const AnnounceWinner = ({ params }: { params: { id: string } }) => {
         const newWinnerTicket = allTickets.find(t => t.id === newWinnerId);
         if (newWinnerTicket) {
              setCurrentAnnouncedWinner(newWinnerTicket);
+             setIsRevealing(true);
         }
     }
-    
-    // Update the ref for the next render
-    prevAnnouncedWinnersRef.current = draw.announcedWinners;
-  }, [draw?.announcedWinners, allTickets]);
+  }, [draw.announcedWinners, allTickets]);
 
-
-  // Left-to-right reveal animation effect
-  useEffect(() => {
-    setRevealedDigits(0); // Reset on new winner
-    if (currentAnnouncedWinner) {
-      const timers = Array.from({ length: 6 }).map((_, i) =>
-        setTimeout(() => {
-          setRevealedDigits(prev => prev + 1);
-        }, (i + 1) * 800) // Reveal one digit every 800ms
-      );
-      return () => timers.forEach(clearTimeout);
+  const handleRevealComplete = useCallback(() => {
+    setIsRevealing(false);
+    if(currentAnnouncedWinner) {
+        // Update the ref *after* reveal is done, so we are ready for the next one
+        prevAnnouncedWinnersRef.current = draw.announcedWinners || {};
     }
-  }, [currentAnnouncedWinner]);
+    setCurrentAnnouncedWinner(null);
+  }, [currentAnnouncedWinner, draw.announcedWinners]);
+
 
   useEffect(() => {
-    // Trigger finale when moving to stage 5 (finished)
-    if (currentStage === 5 && !ceremonyComplete) {
+    if (draw.status === 'finished' && !ceremonyComplete && currentStage === 5) {
       setShowFinale(true);
     }
-  }, [currentStage, ceremonyComplete]);
+  }, [draw.status, ceremonyComplete, currentStage]);
 
-
-  if (loading) {
-    return <div className="flex h-screen items-center justify-center"><Loader2 className="h-16 w-16 animate-spin text-primary" /></div>;
-  }
-  if (error) {
-    return <div className="container mx-auto py-12 px-4 text-center text-destructive">{error}</div>;
-  }
-  if (!draw || !allTickets) {
-      return <div className="container mx-auto py-12 px-4 text-center">Draw data is not available.</div>;
-  }
-
-  const isFinished = draw.status === 'finished' && ceremonyComplete;
-  
-  if (isFinished) {
+  if (ceremonyComplete) {
       return <FinishedDrawDisplay draw={draw} allTickets={allTickets} />
   }
 
@@ -366,15 +297,19 @@ export const AnnounceWinner = ({ params }: { params: { id: string } }) => {
   }
 
   if (showFinale && currentStage === 5) {
-      const finalists = getTicketsByIds(draw.announcedWinners?.[4] || [], allTickets);
-      return <GrandFinale finalists={finalists} onComplete={() => setCeremonyComplete(true)} />
+      const finalists = getTicketsByIds(draw.announcedWinners?.[3] || [], allTickets);
+      const winner = getTicketsByIds(draw.announcedWinners?.[4] || [], allTickets);
+      // Ensure we pass the winner as the first element for GrandFinale component
+      const orderedFinalists = [winner[0], ...finalists.filter(f => f.id !== winner[0]?.id)];
+
+      return <GrandFinale finalists={orderedFinalists} onComplete={() => setCeremonyComplete(true)} />
   }
     
   if (!stageConfig) {
-      return <div className="container mx-auto py-12 px-4 text-center">Invalid ceremony stage.</div>;
+      return <div className="container mx-auto py-12 px-4 text-center">Ceremony Complete!</div>;
   }
   
-  const announcedInStage = getTicketsByIds(draw.announcedWinners?.[currentStage] || [], allTickets);
+  const announcedInStage = getTicketsByIds(prevAnnouncedWinnersRef.current?.[currentStage] || [], allTickets);
   const roundIsComplete = announcedInStage.length === stageConfig.count;
   const userTickets = allTickets?.filter(t => t.userId === user?.id) || [];
   
@@ -383,21 +318,22 @@ export const AnnounceWinner = ({ params }: { params: { id: string } }) => {
         <h3 className="font-headline text-lg mb-2">Next Selection</h3>
         <div className="flex justify-center gap-1 p-4 bg-gray-900 rounded-lg w-full max-w-xs mx-auto">
              {Array.from({length: 6}).map((_, index) => {
-                 const isRevealed = index < revealedDigits;
                  const finalNumber = currentAnnouncedWinner?.numbers[index] || '0';
                  return (
                      <NumberRoller
                         key={index}
                         finalNumber={finalNumber}
-                        isRolling={!isRevealed && !roundIsComplete}
+                        isRolling={isRevealing}
+                        revealDelay={index * 800} // Staggered reveal
+                        onRevealComplete={index === 5 ? handleRevealComplete : undefined}
                     />
                  )
              })}
         </div>
         <div className="mt-2 h-5">
-            { roundIsComplete ? (
+            { roundIsComplete && !isRevealing ? (
                  <p className="text-sm font-semibold text-green-600">Round Complete! Waiting for next round...</p>
-            ) : currentAnnouncedWinner && revealedDigits < 6 ? (
+            ) : isRevealing ? (
                  <p className="text-sm text-muted-foreground animate-pulse">Revealing next winner...</p>
             ) : (
                  <p className="text-sm text-muted-foreground">Waiting for selection...</p>
@@ -406,7 +342,7 @@ export const AnnounceWinner = ({ params }: { params: { id: string } }) => {
     </Card>
   );
   
-  const RoundResultsCard = ({ title, tickets, count }: { title: string, tickets: FullTicket[], count?: number}) => (
+  const RoundResultsCard = ({ title, tickets, count, isCurrentRound }: { title: string, tickets: FullTicket[], count?: number, isCurrentRound?: boolean}) => (
      <Card>
         <CardHeader>
             <CardTitle className="font-headline text-blue-600">{title} ({tickets.length} / {count || tickets.length})</CardTitle>
@@ -425,7 +361,6 @@ export const AnnounceWinner = ({ params }: { params: { id: string } }) => {
 
   return (
     <div className="container mx-auto py-12 px-4">
-
       <div className="text-center mb-8">
         <h1 className="text-2xl md:text-3xl font-bold font-headline text-primary">
           {stageConfig.title}
@@ -441,7 +376,6 @@ export const AnnounceWinner = ({ params }: { params: { id: string } }) => {
                    <SlotMachine />
               </div>
           </div>
-
           <div className="md:col-span-2">
             <Card>
                 <CardHeader>
@@ -451,7 +385,7 @@ export const AnnounceWinner = ({ params }: { params: { id: string } }) => {
                 <CardContent className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-4">
                     {userTickets.map(ticket => {
                         const isAnnounced = Object.values(draw.announcedWinners || {}).flat().includes(ticket.id);
-                        const isEliminated = draw.status === 'announcing' && !Object.values(draw.roundWinners || {}).flat().includes(ticket.id);
+                        const isEliminated = draw.roundWinners ? !Object.values(draw.roundWinners).flat().includes(ticket.id) : false;
 
                         return (
                             <TicketCard
@@ -468,15 +402,17 @@ export const AnnounceWinner = ({ params }: { params: { id: string } }) => {
       </div>
        
        <div className="mt-8 space-y-6">
-           <RoundResultsCard title="Selected This Round" tickets={announcedInStage} count={stageConfig.count} />
+           <RoundResultsCard title="Selected This Round" tickets={announcedInStage} count={stageConfig.count} isCurrentRound={true}/>
 
             {[3, 2, 1].map(stageNum => {
-              if (currentStage > stageNum && draw.announcedWinners?.[stageNum]) {
+              const announcedForStage = draw.announcedWinners?.[stageNum] || [];
+              if (currentStage > stageNum && announcedForStage.length > 0) {
+                 const stageData = STAGE_CONFIG[stageNum as keyof typeof STAGE_CONFIG];
                 return (
                   <RoundResultsCard 
                     key={`past-round-${stageNum}`}
-                    title={STAGE_CONFIG[stageNum as keyof typeof STAGE_CONFIG].title} 
-                    tickets={getTicketsByIds(draw.announcedWinners[stageNum], allTickets)}
+                    title={`${stageData.title} (${stageData.count} / ${stageData.count})`}
+                    tickets={getTicketsByIds(announcedForStage, allTickets)}
                   />
                 )
               }
@@ -485,4 +421,73 @@ export const AnnounceWinner = ({ params }: { params: { id: string } }) => {
        </div>
     </div>
   );
-}
+};
+
+
+export const AnnounceWinner = ({ params }: { params: { id: string } }) => {
+    const [initialData, setInitialData] = useState<{draw: Draw, tickets: FullTicket[]} | null>(null);
+    const [loading, setLoading] = useState(true);
+    const [error, setError] = useState<string | null>(null);
+    
+    useEffect(() => {
+        const fetchInitialData = async () => {
+            if (!params.id) {
+                setError("No draw ID provided.");
+                setLoading(false);
+                return;
+            }
+            try {
+                const drawRef = doc(db, "draws", params.id);
+                const drawSnap = await getDoc(drawRef);
+
+                if (!drawSnap.exists()) {
+                    setError("Draw not found.");
+                    setLoading(false);
+                    return;
+                }
+                const drawData = drawSnap.data() as any;
+                 const fetchedDraw: Draw = {
+                    ...drawData,
+                    id: drawSnap.id,
+                    startDate: drawData.startDate?.toDate(),
+                    endDate: drawData.endDate?.toDate(),
+                    announcementDate: drawData.announcementDate?.toDate(),
+                };
+
+                const ticketsQuery = query(collection(db, 'tickets'), where('drawId', '==', params.id));
+                const ticketsSnapshot = await getDocs(ticketsQuery);
+                const allTicketsData = await Promise.all(ticketsSnapshot.docs.map(async (docSnapshot) => {
+                    const ticketData = { id: docSnapshot.id, ...docSnapshot.data() } as Ticket;
+                    let userData: User | null = null;
+                    if (ticketData.userId) {
+                        const userRef = doc(db, 'users', ticketData.userId);
+                        const userSnap = await getDoc(userRef);
+                        userData = userSnap.exists() ? { id: userSnap.id, ...userSnap.data() } as User : null;
+                    }
+                    return { ...ticketData, user: userData, purchaseDate: ticketData.purchaseDate };
+                }));
+                
+                setInitialData({ draw: fetchedDraw, tickets: allTicketsData });
+
+            } catch (e: any) {
+                setError(`Failed to load initial data: ${e.message}`);
+            } finally {
+                setLoading(false);
+            }
+        };
+
+        fetchInitialData();
+    }, [params.id]);
+
+    if (loading) {
+        return <div className="flex h-screen items-center justify-center"><Loader2 className="h-16 w-16 animate-spin text-primary" /></div>;
+    }
+    if (error) {
+        return <div className="container mx-auto py-12 px-4 text-center text-destructive">{error}</div>;
+    }
+    if (!initialData) {
+        return <div className="container mx-auto py-12 px-4 text-center">Draw data is not available.</div>;
+    }
+
+    return <AnnounceWinnerComponent initialDraw={initialData.draw} allTickets={initialData.tickets} />;
+};
