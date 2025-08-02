@@ -182,7 +182,7 @@ function FinishedDrawDisplay({ draw, allTickets }: { draw: Draw; allTickets: Ful
 
 
 function GrandFinale({ finalists, winner, onComplete }: { finalists: FullTicket[], winner: FullTicket | null, onComplete: () => void }) {
-    const [countdown, setCountdown] = useState(15);
+    const [countdown, setCountdown] = useState(25);
     const [revealed, setRevealed] = useState(false);
     const { width, height } = useWindowSize();
 
