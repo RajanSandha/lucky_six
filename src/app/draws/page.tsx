@@ -51,7 +51,20 @@ export default async function DrawsPage() {
           {visibleDraws.map((draw) => {
             const statusInfo = getDrawStatusInfo(draw);
             const timeRemaining = statusInfo.countdownDate.getTime() - now.getTime();
-            const daysRemaining = Math.ceil(timeRemaining / (1000 * 3600 * 24));
+            
+            const days = Math.floor(timeRemaining / (1000 * 60 * 60 * 24));
+            const hours = Math.floor((timeRemaining % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
+            const minutes = Math.floor((timeRemaining % (1000 * 60 * 60)) / (1000 * 60));
+
+            let timeLeftBadge;
+            if (days > 0) {
+              timeLeftBadge = `${days}d ${hours}h`;
+            } else if (hours > 0) {
+              timeLeftBadge = `${hours}h ${minutes}m`;
+            } else {
+              timeLeftBadge = `${minutes}m`;
+            }
+
 
             return (
               <Card key={draw.id} className="flex flex-col shadow-lg hover:shadow-xl transition-shadow duration-300 overflow-hidden">
@@ -81,7 +94,7 @@ export default async function DrawsPage() {
                   </div>
                   <div className="flex justify-between items-center">
                     <span className="text-sm font-semibold text-muted-foreground">{statusInfo.isUpcoming ? 'Starts In' : 'Ends In'}</span>
-                    <Badge variant="secondary">{daysRemaining > 0 ? `${daysRemaining} day(s)` : 'Today'}</Badge>
+                    <Badge variant="secondary">{timeLeftBadge}</Badge>
                   </div>
                 </CardContent>
                 <CardFooter>
