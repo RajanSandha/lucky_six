@@ -26,6 +26,7 @@ export default function RegisterPage() {
   const [name, setName] = useState('');
   const [otp, setOtp] = useState(Array(6).fill(''));
   const [referralCode, setReferralCode] = useState('');
+  const [drawId, setDrawId] = useState('');
   const router = useRouter();
   const searchParams = useSearchParams();
   const { toast } = useToast();
@@ -35,6 +36,10 @@ export default function RegisterPage() {
     const refCode = searchParams.get('ref');
     if (refCode) {
       setReferralCode(refCode);
+    }
+    const dId = searchParams.get('drawId');
+    if (dId) {
+      setDrawId(dId);
     }
   }, [searchParams]);
 
@@ -52,7 +57,7 @@ export default function RegisterPage() {
   const handleVerifyOtp = async (e: React.FormEvent) => {
     e.preventDefault();
     if(otp.join('') === '123456') {
-        const result = await register(phone, name, referralCode);
+        const result = await register(phone, name, referralCode, drawId);
         if (result.success) {
             toast({
                 title: "Registration Successful!",
@@ -113,8 +118,8 @@ export default function RegisterPage() {
                 <Input id="phone" type="tel" placeholder="+91 98765 43210" value={phone} onChange={e => setPhone(e.target.value)} required />
               </div>
                <div className="space-y-2">
-                <Label htmlFor="referral">Referral Code (Optional)</Label>
-                <Input id="referral" type="text" placeholder="Enter referral code" value={referralCode} onChange={e => setReferralCode(e.target.value)} />
+                <Label htmlFor="referral">Referral Code (from link)</Label>
+                <Input id="referral" type="text" placeholder="Auto-filled from referral link" value={referralCode} onChange={e => setReferralCode(e.target.value)} disabled={!!searchParams.get('ref')} />
               </div>
             </CardContent>
             <CardFooter className="flex flex-col gap-4">

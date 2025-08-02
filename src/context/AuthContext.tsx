@@ -3,21 +3,39 @@
 
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import { db } from '@/lib/firebase';
-import { doc, getDoc, setDoc, collection, query, where, getDocs, updateDoc, increment, limit, writeBatch } from 'firebase/firestore';
-import type { User } from '@/lib/types';
+import { doc, getDoc, setDoc, collection, query, where, getDocs, updateDoc, increment, arrayUnion, writeBatch, Timestamp } from 'firebase/firestore';
+import type { User, Draw } from '@/lib/types';
 import { Loader2 } from 'lucide-react';
-import { purchaseTicket } from '@/app/draws/[id]/actions';
 
 // Define the shape of the context
 interface AuthContextType {
   user: (User & { isAdmin: boolean }) | null;
   loading: boolean;
   login: (phone: string) => Promise<boolean>;
-  register: (phone: string, name: string, referralCode?: string) => Promise<{success: boolean, message?: string}>;
+  register: (phone: string, name: string, referralCode?: string, drawId?: string) => Promise<{success: boolean, message?: string}>;
   logout: () => void;
 }
 
+// Helper to generate a 6-digit string
 const generate6DigitString = () => Array.from({ length: 6 }, () => Math.floor(Math.random() * 10)).join('');
+
+// Helper to generate a unique ticket number for a specific draw
+const generateUniqueTicketForDraw = async (drawId: string): Promise<string> => {
+    let newTicketNumber;
+    let isUnique = false;
+    const ticketsRef = collection(db, 'tickets');
+
+    while (!isUnique) {
+        newTicketNumber = generate6DigitString();
+        const q = query(ticketsRef, where('drawId', '==', drawId), where('numbers', '==', newTicketNumber));
+        const snapshot = await getDocs(q);
+        if (snapshot.empty) {
+            isUnique = true;
+        }
+    }
+    return newTicketNumber!;
+}
+
 
 // Create the context with a default value
 const AuthContext = createContext<AuthContextType>({
@@ -74,7 +92,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
   };
 
-  const register = async (phone: string, name: string, referralCode?: string): Promise<{success: boolean, message?: string}> => {
+  const register = async (phone: string, name: string, referralCode?: string, drawId?: string): Promise<{success: boolean, message?: string}> => {
     setLoading(true);
     try {
         const usersRef = collection(db, "users");
@@ -87,8 +105,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
         // Generate a unique referral code for the new user
         const newReferralCode = `L6-${generate6DigitString()}`;
-
         const userId = doc(collection(db, 'users')).id;
+
         const newUser: User = {
             id: userId,
             name,
@@ -99,74 +117,67 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         };
         
         let referralMessage = '';
+        const batch = writeBatch(db);
 
         // Handle referral logic
-        if (referralCode) {
-            const referrerQuery = query(collection(db, 'users'), where('referralCode', '==', referralCode), limit(1));
+        if (referralCode && drawId) {
+            const referrerQuery = query(collection(db, 'users'), where('referralCode', '==', referralCode));
             const referrerSnap = await getDocs(referrerQuery);
+            const drawRef = doc(db, 'draws', drawId);
+            const drawSnap = await getDoc(drawRef);
 
             if (referrerSnap.empty) {
                 return { success: false, message: "Invalid referral code." };
             }
+             if (!drawSnap.exists() || !drawSnap.data()?.referralAvailable) {
+                return { success: false, message: "This draw is not eligible for referrals." };
+            }
             
+            const drawData = drawSnap.data() as Draw;
             const referrerDoc = referrerSnap.docs[0];
             const referrer = { id: referrerDoc.id, ...referrerDoc.data() } as User;
 
-            // Find an active, referral-enabled draw
-            const drawsRef = collection(db, 'draws');
-            const now = new Date();
-            const activeDrawQuery = query(
-                drawsRef,
-                where('referralAvailable', '==', true),
-                where('startDate', '<=', now),
-                where('endDate', '>', now),
-                limit(1)
-            );
-            const activeDrawsSnap = await getDocs(activeDrawQuery);
+            // Issue ticket to new user
+            const newUserTicketRef = doc(collection(db, 'tickets'));
+            const newUserTicketNumber = await generateUniqueTicketForDraw(drawId);
+            batch.set(newUserTicketRef, {
+                drawId: drawId,
+                userId: newUser.id,
+                numbers: newUserTicketNumber,
+                purchaseDate: Timestamp.now(),
+                isReferral: true,
+            });
+            newUser.ticketIds.push(newUserTicketRef.id);
 
-            if (!activeDrawsSnap.empty) {
-                const draw = { id: activeDrawsSnap.docs[0].id, ...activeDrawsSnap.docs[0].data()};
-                
-                const batch = writeBatch(db);
-
-                // Issue ticket to new user
-                const newUserTicketRef = doc(collection(db, 'tickets'));
-                batch.set(newUserTicketRef, {
-                    drawId: draw.id,
-                    userId: newUser.id,
-                    numbers: generate6DigitString(),
-                    purchaseDate: new Date(),
-                    isReferral: true,
-                });
-                newUser.ticketIds.push(newUserTicketRef.id);
-
-                // Issue ticket to referrer
-                const referrerTicketRef = doc(collection(db, 'tickets'));
-                 batch.set(referrerTicketRef, {
-                    drawId: draw.id,
-                    userId: referrer.id,
-                    numbers: generate6DigitString(),
-                    purchaseDate: new Date(),
-                    isReferral: true,
-                });
-                
-                // Update referrer's data
-                const referrerUserRef = doc(db, 'users', referrer.id);
-                batch.update(referrerUserRef, { 
-                    referralsMade: increment(1),
-                    ticketIds: arrayUnion(referrerTicketRef.id)
-                });
-                
-                await batch.commit();
-
-                referralMessage = `You and your referrer both received a free ticket for the "${draw.name}" draw!`;
-            }
+            // Issue ticket to referrer
+            const referrerTicketRef = doc(collection(db, 'tickets'));
+            const referrerTicketNumber = await generateUniqueTicketForDraw(drawId);
+            batch.set(referrerTicketRef, {
+                drawId: drawId,
+                userId: referrer.id,
+                numbers: referrerTicketNumber,
+                purchaseDate: Timestamp.now(),
+                isReferral: true,
+            });
+            
+            // Update referrer's data
+            const referrerUserRef = doc(db, 'users', referrer.id);
+            batch.update(referrerUserRef, { 
+                referralsMade: increment(1),
+                ticketIds: arrayUnion(referrerTicketRef.id)
+            });
+            
+            referralMessage = `You and your friend both received a free ticket for the "${drawData.name}" draw!`;
         }
 
-        await setDoc(doc(db, "users", userId), newUser);
+        const userDocRef = doc(db, "users", userId);
+        batch.set(userDocRef, newUser);
+        
+        await batch.commit();
+
         const fullUser = { ...newUser, isAdmin: newUser.role === 'admin' };
         setUser(fullUser);
-        localStorage.setItem('lucky-six-user', JSON.stringify(fullUser));
+localStorage.setItem('lucky-six-user', JSON.stringify(fullUser));
 
         return { success: true, message: referralMessage };
 

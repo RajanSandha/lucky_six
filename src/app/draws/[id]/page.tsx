@@ -6,7 +6,7 @@ import { useParams, notFound, useRouter } from 'next/navigation';
 import Image from 'next/image';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Ticket, Dices, CreditCard, PartyPopper, ArrowLeft, Search, RefreshCw, Clock, Gift } from 'lucide-react';
+import { Ticket, Dices, CreditCard, PartyPopper, ArrowLeft, Search, RefreshCw, Clock, Gift, Copy, Share2 } from 'lucide-react';
 import { TicketDisplay } from '@/components/TicketDisplay';
 import { useToast } from '@/hooks/use-toast';
 import Link from 'next/link';
@@ -17,9 +17,56 @@ import { Loader2 } from 'lucide-react';
 import { useAuth } from '@/context/AuthContext';
 import { purchaseTicket } from './actions';
 import { Countdown } from '@/components/Countdown';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogClose } from '@/components/ui/dialog';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
 
 // Helper to generate a 6-digit string
 const generate6DigitString = () => Array.from({ length: 6 }, () => Math.floor(Math.random() * 10)).join('');
+
+function ReferralDialog({ open, onOpenChange, referralLink }: { open: boolean, onOpenChange: (open: boolean) => void, referralLink: string }) {
+    const { toast } = useToast();
+
+    const copyToClipboard = (text: string) => {
+        navigator.clipboard.writeText(text);
+        toast({
+            title: "Copied to Clipboard!",
+            description: "You can now share the referral link with your friends.",
+        });
+    }
+    
+    return (
+         <Dialog open={open} onOpenChange={onOpenChange}>
+            <DialogContent>
+                <DialogHeader>
+                    <DialogTitle className="font-headline flex items-center gap-2"><Gift className="h-6 w-6 text-primary"/> Get a Free Ticket!</DialogTitle>
+                    <DialogDescription>
+                        Share this unique link with a friend. When they register for Lucky Six using this link, you'll **both** receive a free ticket for this specific draw!
+                    </DialogDescription>
+                </DialogHeader>
+                <div className="py-4 space-y-4">
+                    <div className="space-y-2">
+                        <Label htmlFor="referral-link">Your Unique Referral Link</Label>
+                        <div className="flex items-center space-x-2">
+                            <Input id="referral-link" value={referralLink} readOnly />
+                            <Button variant="outline" size="icon" onClick={() => copyToClipboard(referralLink)}>
+                                <Copy className="h-4 w-4" />
+                            </Button>
+                        </div>
+                    </div>
+                     <Button className="w-full" onClick={() => navigator.share({ title: 'Join me on Lucky Six!', text: 'Join me on Lucky Six and get a free ticket!', url: referralLink })}>
+                        <Share2 className="mr-2 h-4 w-4" />
+                        Share Link
+                    </Button>
+                </div>
+                 <DialogClose asChild>
+                    <Button type="button" variant="secondary">Close</Button>
+                </DialogClose>
+            </DialogContent>
+        </Dialog>
+    )
+}
+
 
 export default function DrawDetailPage() {
   const [draw, setDraw] = useState<Draw | null>(null);
@@ -31,6 +78,7 @@ export default function DrawDetailPage() {
   const [suggestedTickets, setSuggestedTickets] = useState<string[]>([]);
   const [availableFilteredTickets, setAvailableFilteredTickets] = useState<string[]>([]);
   const [existingTicketNumbers, setExistingTicketNumbers] = useState<Set<string>>(new Set());
+  const [isReferralDialogOpen, setIsReferralDialogOpen] = useState(false);
   const { toast } = useToast();
   const { user } = useAuth();
   const router = useRouter();
@@ -183,6 +231,7 @@ export default function DrawDetailPage() {
   const handlePayment = async () => {
     if (!user) {
         toast({ title: "Not Logged In", description: "You must be logged in to purchase a ticket.", variant: "destructive" });
+        router.push('/auth/login');
         return;
     }
     if (!draw || !statusInfo.isActive) return;
@@ -223,9 +272,10 @@ export default function DrawDetailPage() {
   const handleReferralClick = () => {
       if (!user) {
         toast({ title: "Not Logged In", description: "You must be logged in to use referrals.", variant: "destructive" });
+        router.push('/auth/login');
         return;
     }
-    router.push('/account/referral');
+    setIsReferralDialogOpen(true);
   }
   
   if (isLoading) {
@@ -236,6 +286,8 @@ export default function DrawDetailPage() {
     // This will be handled by notFound() in useEffect, but as a fallback:
     return <div className="container mx-auto py-12 px-4 text-center"><p>Draw not found.</p></div>;
   }
+
+  const referralLink = user ? `${window.location.origin}/auth/register?ref=${user.referralCode}&drawId=${draw.id}` : '';
 
   if (isPaid && lastPurchasedTicket) {
     return (
@@ -269,6 +321,7 @@ export default function DrawDetailPage() {
 
   return (
     <div className="container mx-auto py-12 px-4">
+      <ReferralDialog open={isReferralDialogOpen} onOpenChange={setIsReferralDialogOpen} referralLink={referralLink}/>
       <Button variant="ghost" asChild className="mb-4">
         <Link href="/draws"><ArrowLeft className="mr-2 h-4 w-4"/> Back to Draws</Link>
       </Button>
@@ -366,7 +419,6 @@ export default function DrawDetailPage() {
                         disabled={isBuying || !statusInfo.isActive} 
                         className="w-full bg-primary text-primary-foreground hover:bg-primary/90 font-bold"
                         size="lg"
-                        variant="outline"
                     >
                         <Gift className="mr-2 h-5 w-5"/>
                         Get with Referral
