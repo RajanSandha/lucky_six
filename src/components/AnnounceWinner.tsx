@@ -1,4 +1,5 @@
 
+
 "use client";
 
 import * as React from 'react';
@@ -7,7 +8,7 @@ import type { Draw, Ticket, User } from '@/lib/types';
 import { TicketCard } from './TicketCard';
 import { useWindowSize } from 'react-use';
 import Confetti from 'react-confetti';
-import { Loader2, Crown } from 'lucide-react';
+import { Loader2, Crown, Ticket as TicketIcon } from 'lucide-react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from './ui/card';
 import { db } from '@/lib/firebase';
 import { doc, onSnapshot, collection, query, where, getDocs, getDoc } from 'firebase/firestore';
@@ -32,26 +33,79 @@ const getTicketsByIds = (ids: string[], allTickets: FullTicket[]): FullTicket[] 
     return ids.map(id => ticketMap.get(id)).filter(Boolean) as FullTicket[];
 }
 
+const AwaitingMessages = [
+    "Verifying all entries...",
+    "Cross-referencing tickets...",
+    "Wishing you luck!",
+    "The tension is mounting!",
+    "Our system is ensuring fairness...",
+    "Who will be the lucky winner?",
+    "Could it be you?",
+    "Final checks in progress."
+];
+
 function AwaitingCeremonyDisplay({ draw }: { draw: Draw }) {
+    const [messageIndex, setMessageIndex] = useState(0);
+    const { user } = useAuth();
+
+    useEffect(() => {
+        const interval = setInterval(() => {
+            setMessageIndex(prevIndex => (prevIndex + 1) % AwaitingMessages.length);
+        }, 3000); // Change message every 3 seconds
+
+        return () => clearInterval(interval);
+    }, []);
+
+    const floatingTickets = Array.from({ length: 15 }).map((_, i) => {
+        const style = {
+            left: `${Math.random() * 100}vw`,
+            animationDuration: `${Math.random() * 5 + 5}s`,
+            animationDelay: `${Math.random() * 5}s`,
+        };
+        return <TicketIcon key={i} className="absolute top-[-10%] text-primary/20 animate-fall" style={style} />;
+    });
+
     return (
-        <div className="container mx-auto py-12 px-4">
-            <div className="text-center mb-8">
+        <div className="relative container mx-auto py-12 px-4 h-[calc(100vh-10rem)] flex flex-col items-center justify-center overflow-hidden">
+            {floatingTickets}
+            <div className="text-center mb-8 z-10">
                 <h1 className="text-3xl font-bold font-headline text-primary">The Ceremony Is About to Begin!</h1>
-                 <p className="text-muted-foreground mt-2">Winner selection starts on {new Date(draw.announcementDate).toLocaleString()}</p>
+                <p className="text-muted-foreground mt-2">Winner selection starts on {new Date(draw.announcementDate).toLocaleString()}</p>
+                 {user && <p className="text-lg font-semibold mt-4">Hang tight, {user.name}! The excitement is building.</p>}
             </div>
-             <div className="flex justify-center">
-                 <Card className="w-full max-w-lg">
-                    <CardHeader>
-                        <CardTitle>Awaiting selection...</CardTitle>
-                        <CardDescription>The system is preparing to select the winners. The ceremony will begin shortly.</CardDescription>
-                    </CardHeader>
-                    <CardContent className="text-center">
-                        <Loader2 className="h-12 w-12 animate-spin text-primary mx-auto" />
+             <div className="flex justify-center z-10">
+                 <Card className="w-full max-w-lg shadow-2xl bg-background/80 backdrop-blur-sm">
+                    <CardContent className="text-center p-8 flex flex-col items-center gap-6">
+                        <TicketIcon className="w-24 h-24 text-primary animate-pulse" style={{ animationDuration: '1.5s' }} />
+                        <div className="relative h-8 w-full overflow-hidden">
+                             {AwaitingMessages.map((msg, index) => (
+                                <div
+                                    key={msg}
+                                    className={cn(
+                                        "absolute w-full text-center text-lg font-semibold text-muted-foreground transition-all duration-500",
+                                        index === messageIndex ? 'opacity-100 translate-y-0' : 'opacity-0 -translate-y-full'
+                                    )}
+                                >
+                                    {msg}
+                                </div>
+                             ))}
+                        </div>
                     </CardContent>
                  </Card>
             </div>
+             <style jsx>{`
+                @keyframes fall {
+                    0% { transform: translateY(0) rotate(0deg); opacity: 1; }
+                    100% { transform: translateY(110vh) rotate(360deg); opacity: 0; }
+                }
+                .animate-fall {
+                    animation-name: fall;
+                    animation-timing-function: linear;
+                    animation-iteration-count: infinite;
+                }
+            `}</style>
         </div>
-    )
+    );
 }
 
 function FinishedDrawDisplay({ draw, allTickets }: { draw: Draw; allTickets: FullTicket[] }) {
@@ -184,7 +238,7 @@ function GrandFinale({ finalists, winner, onComplete }: { finalists: FullTicket[
     )
 }
 
-function AnnounceWinnerComponent({ params }: { params: { id: string } }) {
+function AnnounceWinner({ params }: { params: { id: string } }) {
     // Data states
     const [draw, setDraw] = useState<Draw | null>(null);
     const [allTickets, setAllTickets] = useState<FullTicket[]>([]);
@@ -201,9 +255,11 @@ function AnnounceWinnerComponent({ params }: { params: { id: string } }) {
 
 
     useEffect(() => {
-        if (!params.id) {
+        const drawId = params.id;
+        if (!drawId) {
             setError("No draw ID provided.");
             setLoading(false);
+            setViewState('finished'); // Can't do anything without an ID
             return;
         }
 
@@ -211,7 +267,7 @@ function AnnounceWinnerComponent({ params }: { params: { id: string } }) {
             setLoading(true);
             try {
                 // Fetch all tickets for the draw once
-                const ticketsQuery = query(collection(db, 'tickets'), where('drawId', '==', params.id));
+                const ticketsQuery = query(collection(db, 'tickets'), where('drawId', '==', drawId));
                 const ticketsSnapshot = await getDocs(ticketsQuery);
                 const allTicketsData = await Promise.all(ticketsSnapshot.docs.map(async (docSnapshot) => {
                     const ticketData = { id: docSnapshot.id, ...docSnapshot.data() } as Ticket;
@@ -233,7 +289,7 @@ function AnnounceWinnerComponent({ params }: { params: { id: string } }) {
 
         fetchInitialData();
 
-        const unsub = onSnapshot(doc(db, "draws", params.id), (doc) => {
+        const unsub = onSnapshot(doc(db, "draws", drawId), (doc) => {
             if (doc.exists()) {
                 const data = doc.data() as any;
                 const newDrawData: Draw = {
@@ -288,10 +344,17 @@ function AnnounceWinnerComponent({ params }: { params: { id: string } }) {
             }
 
         } else if (viewState !== 'awaiting') {
-            setViewState('awaiting');
+            // This logic ensures we check dates before setting to 'awaiting'
+            const now = new Date();
+            const announcementDate = draw.announcementDate ? new Date(draw.announcementDate) : null;
+            if (announcementDate && now >= announcementDate) {
+                 if (viewState !== 'announcing') setViewState('announcing');
+            } else {
+                 if (viewState !== 'awaiting') setViewState('awaiting');
+            }
         }
 
-    }, [draw, revealedWinnerIds, revealingTicketId]);
+    }, [draw, revealedWinnerIds, revealingTicketId, viewState]);
 
 
     const handleRevealComplete = useCallback((ticketId: string) => {
@@ -476,7 +539,3 @@ function AnnounceWinnerComponent({ params }: { params: { id: string } }) {
     );
 };
 
-
-export const AnnounceWinner = ({ params }: { params: { id: string } }) => {
-    return <AnnounceWinnerComponent params={params} />;
-};
