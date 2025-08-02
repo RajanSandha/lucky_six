@@ -35,6 +35,51 @@ export default function AnnouncementsClientPage({ draws }: { draws: Draw[] }) {
         </p>
       </div>
 
+       <div>
+        <h2 className="text-2xl font-bold font-headline mb-4 flex items-center">
+            <Radio className="mr-3 h-6 w-6 text-purple-600 animate-pulse" />
+            Announcing Now
+        </h2>
+        {announcingDraws.length > 0 ? (
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
+            {announcingDraws.map((draw) => (
+                <Card key={draw.id} className="flex flex-col shadow-lg hover:shadow-xl transition-shadow duration-300 border-purple-500/50">
+                <CardHeader>
+                    <div className="relative h-48 w-full mb-4">
+                        <Image src={draw.imageUrl || 'https://placehold.co/600x400.png'} alt={draw.name} layout="fill" objectFit="cover" className="rounded-t-lg" data-ai-hint="lottery prize" />
+                    </div>
+                    <CardTitle className="font-headline text-2xl">{draw.name}</CardTitle>
+                    <CardDescription>Ceremony in progress...</CardDescription>
+                </CardHeader>
+                <CardContent className="flex-grow">
+                    <div className="flex justify-between items-center">
+                        <span className="text-sm font-semibold text-muted-foreground">Prize Pool</span>
+                        <span className="text-2xl font-bold text-primary font-headline">
+                        ₹{draw.prize.toLocaleString('en-IN')}
+                        </span>
+                    </div>
+                </CardContent>
+                <CardContent>
+                    <Button asChild className="w-full bg-purple-600 text-white hover:bg-purple-600/90">
+                    <Link href={`/announcements/${draw.id}`}>
+                        <Trophy className="mr-2 h-4 w-4" />
+                        Watch Live
+                    </Link>
+                    </Button>
+                </CardContent>
+                </Card>
+            ))}
+            </div>
+        ) : (
+            <div className="text-center py-16 text-muted-foreground">
+                <Search className="h-12 w-12 mx-auto mb-4"/>
+                <p>No draws are being announced right now.</p>
+            </div>
+        )}
+      </div>
+
+      <Separator className="my-12" />
+
       <div>
         <h2 className="text-2xl font-bold font-headline mb-4 flex items-center">
             <Calendar className="mr-3 h-6 w-6 text-primary" />
@@ -74,51 +119,6 @@ export default function AnnouncementsClientPage({ draws }: { draws: Draw[] }) {
             <div className="text-center py-16 text-muted-foreground">
                 <Search className="h-12 w-12 mx-auto mb-4"/>
                 <p>No upcoming results scheduled.</p>
-            </div>
-        )}
-      </div>
-
-      <Separator className="my-12" />
-
-      <div>
-        <h2 className="text-2xl font-bold font-headline mb-4 flex items-center">
-            <Radio className="mr-3 h-6 w-6 text-purple-600 animate-pulse" />
-            Announcing Now
-        </h2>
-        {announcingDraws.length > 0 ? (
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
-            {announcingDraws.map((draw) => (
-                <Card key={draw.id} className="flex flex-col shadow-lg hover:shadow-xl transition-shadow duration-300 border-purple-500/50">
-                <CardHeader>
-                    <div className="relative h-48 w-full mb-4">
-                        <Image src={draw.imageUrl || 'https://placehold.co/600x400.png'} alt={draw.name} layout="fill" objectFit="cover" className="rounded-t-lg" data-ai-hint="lottery prize" />
-                    </div>
-                    <CardTitle className="font-headline text-2xl">{draw.name}</CardTitle>
-                    <CardDescription>Ceremony in progress...</CardDescription>
-                </CardHeader>
-                <CardContent className="flex-grow">
-                    <div className="flex justify-between items-center">
-                        <span className="text-sm font-semibold text-muted-foreground">Prize Pool</span>
-                        <span className="text-2xl font-bold text-primary font-headline">
-                        ₹{draw.prize.toLocaleString('en-IN')}
-                        </span>
-                    </div>
-                </CardContent>
-                <CardContent>
-                    <Button asChild className="w-full bg-purple-600 text-white hover:bg-purple-600/90">
-                    <Link href={`/announcements/${draw.id}`}>
-                        <Trophy className="mr-2 h-4 w-4" />
-                        Watch Live
-                    </Link>
-                    </Button>
-                </CardContent>
-                </Card>
-            ))}
-            </div>
-        ) : (
-            <div className="text-center py-16 text-muted-foreground">
-                <Search className="h-12 w-12 mx-auto mb-4"/>
-                <p>No draws are being announced right now.</p>
             </div>
         )}
       </div>
