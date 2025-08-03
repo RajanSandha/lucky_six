@@ -1,9 +1,10 @@
+
 "use client";
 
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import { db } from '@/lib/firebase';
-import { doc, getDoc, setDoc, collection, query, where, getDocs } from 'firebase/firestore';
-import type { User } from '@/lib/types';
+import { doc, getDoc, setDoc, collection, query, where, getDocs, updateDoc, increment, arrayUnion, writeBatch, Timestamp } from 'firebase/firestore';
+import type { User, Draw } from '@/lib/types';
 import { Loader2 } from 'lucide-react';
 
 // Define the shape of the context
@@ -11,16 +12,37 @@ interface AuthContextType {
   user: (User & { isAdmin: boolean }) | null;
   loading: boolean;
   login: (phone: string) => Promise<boolean>;
-  register: (phone: string, name: string) => Promise<boolean>;
+  register: (phone: string, name: string, referralCode?: string, drawId?: string) => Promise<{success: boolean, message?: string}>;
   logout: () => void;
 }
+
+// Helper to generate a 6-digit string
+const generate6DigitString = () => Array.from({ length: 6 }, () => Math.floor(Math.random() * 10)).join('');
+
+// Helper to generate a unique ticket number for a specific draw
+const generateUniqueTicketForDraw = async (drawId: string): Promise<string> => {
+    let newTicketNumber;
+    let isUnique = false;
+    const ticketsRef = collection(db, 'tickets');
+
+    while (!isUnique) {
+        newTicketNumber = generate6DigitString();
+        const q = query(ticketsRef, where('drawId', '==', drawId), where('numbers', '==', newTicketNumber));
+        const snapshot = await getDocs(q);
+        if (snapshot.empty) {
+            isUnique = true;
+        }
+    }
+    return newTicketNumber!;
+}
+
 
 // Create the context with a default value
 const AuthContext = createContext<AuthContextType>({
   user: null,
   loading: true,
   login: async () => false,
-  register: async () => false,
+  register: async () => ({ success: false }),
   logout: () => {},
 });
 
@@ -70,7 +92,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
   };
 
-  const register = async (phone: string, name: string): Promise<boolean> => {
+  const register = async (phone: string, name: string, referralCode?: string, drawId?: string): Promise<{success: boolean, message?: string}> => {
     setLoading(true);
     try {
         const usersRef = collection(db, "users");
@@ -78,31 +100,95 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         const querySnapshot = await getDocs(q);
 
         if (!querySnapshot.empty) {
-            console.log("User already exists");
-            return false;
+            return { success: false, message: "User with this phone number already exists." };
         }
 
+        // Generate a unique referral code for the new user
+        const newReferralCode = `L6-${generate6DigitString()}`;
         const userId = doc(collection(db, 'users')).id;
+
         const newUser: User = {
             id: userId,
             name,
             phone,
-            ticketIds: []
+            ticketIds: [],
+            referralCode: newReferralCode,
+            referralsMade: 0,
         };
         
-        await setDoc(doc(db, "users", userId), newUser);
+        let referralMessage = '';
+        const batch = writeBatch(db);
+
+        // Handle referral logic
+        if (referralCode && drawId) {
+            const referrerQuery = query(collection(db, 'users'), where('referralCode', '==', referralCode));
+            const referrerSnap = await getDocs(referrerQuery);
+            const drawRef = doc(db, 'draws', drawId);
+            const drawSnap = await getDoc(drawRef);
+
+            if (referrerSnap.empty) {
+                return { success: false, message: "Invalid referral code." };
+            }
+             if (!drawSnap.exists() || !drawSnap.data()?.referralAvailable) {
+                return { success: false, message: "This draw is not eligible for referrals." };
+            }
+            
+            const drawData = drawSnap.data() as Draw;
+            const referrerDoc = referrerSnap.docs[0];
+            const referrer = { id: referrerDoc.id, ...referrerDoc.data() } as User;
+
+            // Issue ticket to new user
+            const newUserTicketRef = doc(collection(db, 'tickets'));
+            const newUserTicketNumber = await generateUniqueTicketForDraw(drawId);
+            batch.set(newUserTicketRef, {
+                drawId: drawId,
+                userId: newUser.id,
+                numbers: newUserTicketNumber,
+                purchaseDate: Timestamp.now(),
+                isReferral: true,
+            });
+            newUser.ticketIds.push(newUserTicketRef.id);
+
+            // Issue ticket to referrer
+            const referrerTicketRef = doc(collection(db, 'tickets'));
+            const referrerTicketNumber = await generateUniqueTicketForDraw(drawId);
+            batch.set(referrerTicketRef, {
+                drawId: drawId,
+                userId: referrer.id,
+                numbers: referrerTicketNumber,
+                purchaseDate: Timestamp.now(),
+                isReferral: true,
+            });
+            
+            // Update referrer's data
+            const referrerUserRef = doc(db, 'users', referrer.id);
+            batch.update(referrerUserRef, { 
+                referralsMade: increment(1),
+                ticketIds: arrayUnion(referrerTicketRef.id)
+            });
+            
+            referralMessage = `You and your friend both received a free ticket for the "${drawData.name}" draw!`;
+        }
+
+        const userDocRef = doc(db, "users", userId);
+        batch.set(userDocRef, newUser);
+        
+        await batch.commit();
 
         const fullUser = { ...newUser, isAdmin: newUser.role === 'admin' };
         setUser(fullUser);
         localStorage.setItem('lucky-six-user', JSON.stringify(fullUser));
-        return true;
-    } catch (error) {
+
+        return { success: true, message: referralMessage };
+
+    } catch (error: any) {
         console.error("Error registering user: ", error);
-        return false;
+        return { success: false, message: error.message };
     } finally {
         setLoading(false);
     }
   };
+
 
   const logout = () => {
     setUser(null);

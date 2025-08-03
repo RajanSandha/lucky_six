@@ -9,21 +9,21 @@ import { User as UserType } from "@/lib/types";
 // This is a placeholder for getting user by id.
 async function getUserById(id: string): Promise<UserType | null> {
     if (!id) return null;
-    // For now, we return mock data as we don't have a user collection
-    const mockUsers: {[key: string]: UserType} = {
-        'user-1': { id: 'user-1', name: 'Alice', phone: '123', ticketIds: []},
-        'user-2': { id: 'user-2', name: 'Bob', phone: '123', ticketIds: []},
-        'user-3': { id: 'user-3', name: 'Charlie', phone: '123', ticketIds: []},
-        'user-4': { id: 'user-4', name: 'Diana', phone: '123', ticketIds: []},
+    const userRef = doc(db, 'users', id);
+    const userSnap = await getDoc(userRef);
+
+    if (userSnap.exists()) {
+        return { id: userSnap.id, ...userSnap.data() } as UserType;
     }
-    return mockUsers[id] || null;
+    
+    return null;
 }
 
 export async function RecentWinners() {
     const allDraws = await getDraws();
     const pastDraws = allDraws
-        .filter(d => d.endDate <= new Date() && d.winnerId)
-        .sort((a, b) => b.endDate.getTime() - a.endDate.getTime())
+        .filter(d => d.status === 'finished' && d.winnerId)
+        .sort((a, b) => new Date(b.announcementDate).getTime() - new Date(a.announcementDate).getTime())
         .slice(0, 3);
 
     const drawsWithWinners = await Promise.all(
@@ -54,7 +54,7 @@ export async function RecentWinners() {
                                     </div>
                                     <div>
                                         <CardTitle className="text-xl font-headline">{draw.winner?.name || 'Anonymous'}</CardTitle>
-                                        <CardDescription>Won on {draw.endDate.toLocaleDateString()}</CardDescription>
+                                        <CardDescription>Won on {new Date(draw.endDate).toLocaleDateString()}</CardDescription>
                                     </div>
                                 </CardHeader>
                                 <CardContent className="text-center">

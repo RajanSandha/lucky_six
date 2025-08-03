@@ -1,10 +1,11 @@
+
 'use server';
 
 import { db } from '@/lib/firebase';
 import { collection, addDoc, serverTimestamp, query, where, getDocs, doc, updateDoc, arrayUnion } from 'firebase/firestore';
 import { revalidatePath } from 'next/cache';
 
-export async function purchaseTicket(drawId: string, userId: string, ticketNumber: string) {
+export async function purchaseTicket(drawId: string, userId: string, ticketNumber: string, isReferral: boolean) {
     try {
         // First, check if the ticket already exists for this draw
         const ticketsRef = collection(db, 'tickets');
@@ -21,6 +22,7 @@ export async function purchaseTicket(drawId: string, userId: string, ticketNumbe
             userId,
             numbers: ticketNumber,
             purchaseDate: serverTimestamp(),
+            isReferral: isReferral || false,
         };
         const docRef = await addDoc(ticketsRef, newTicketData);
         

@@ -2,26 +2,84 @@
 "use client";
 
 import { useState, useMemo, useEffect } from 'react';
-import { useParams, notFound } from 'next/navigation';
+import { useParams, notFound, useRouter } from 'next/navigation';
 import Image from 'next/image';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Ticket, Dices, CreditCard, PartyPopper, ArrowLeft, Search, RefreshCw } from 'lucide-react';
+import { Ticket, Dices, CreditCard, PartyPopper, ArrowLeft, Search, RefreshCw, Clock, Gift, Copy, Share2 } from 'lucide-react';
 import { TicketDisplay } from '@/components/TicketDisplay';
 import { useToast } from '@/hooks/use-toast';
 import Link from 'next/link';
-import { doc, getDoc, collection, getDocs, query, where } from 'firebase/firestore';
+import { doc, getDoc, collection, getDocs, query, where, Timestamp } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 import type { Draw, Ticket as TicketType } from '@/lib/types';
 import { Loader2 } from 'lucide-react';
 import { useAuth } from '@/context/AuthContext';
 import { purchaseTicket } from './actions';
+import { Countdown } from '@/components/Countdown';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogClose } from '@/components/ui/dialog';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
 
 // Helper to generate a 6-digit string
 const generate6DigitString = () => Array.from({ length: 6 }, () => Math.floor(Math.random() * 10)).join('');
 
+function ReferralDialog({ open, onOpenChange, referralLink }: { open: boolean, onOpenChange: (open: boolean) => void, referralLink: string }) {
+    const { toast } = useToast();
+    const [isShareSupported, setIsShareSupported] = useState(false);
+
+    useEffect(() => {
+        if (typeof navigator !== 'undefined' && navigator.share) {
+            setIsShareSupported(true);
+        }
+    }, []);
+
+    const copyToClipboard = (text: string) => {
+        navigator.clipboard.writeText(text);
+        toast({
+            title: "Copied to Clipboard!",
+            description: "You can now share the referral link with your friends.",
+        });
+    }
+    
+    return (
+         <Dialog open={open} onOpenChange={onOpenChange}>
+            <DialogContent>
+                <DialogHeader>
+                    <DialogTitle className="font-headline flex items-center gap-2"><Gift className="h-6 w-6 text-primary"/> Get a Free Ticket!</DialogTitle>
+                    <DialogDescription>
+                        Share this unique link with a friend. When they register for Lucky Six using this link, you'll **both** receive a free ticket for this specific draw!
+                    </DialogDescription>
+                </DialogHeader>
+                <div className="py-4 space-y-4">
+                    <div className="space-y-2">
+                        <Label htmlFor="referral-link">Your Unique Referral Link</Label>
+                        <div className="flex items-center space-x-2">
+                            <Input id="referral-link" value={referralLink} readOnly />
+                            <Button variant="outline" size="icon" onClick={() => copyToClipboard(referralLink)}>
+                                <Copy className="h-4 w-4" />
+                            </Button>
+                        </div>
+                    </div>
+                     {isShareSupported && (
+                        <Button className="w-full" onClick={() => navigator.share({ title: 'Join me on Lucky Six!', text: 'Join me on Lucky Six and get a free ticket!', url: referralLink })}>
+                            <Share2 className="mr-2 h-4 w-4" />
+                            Share Link
+                        </Button>
+                     )}
+                </div>
+                 <DialogClose asChild>
+                    <Button type="button" variant="secondary">Close</Button>
+                </DialogClose>
+            </DialogContent>
+        </Dialog>
+    )
+}
+
+
 export default function DrawDetailPage() {
   const [draw, setDraw] = useState<Draw | null>(null);
+  const [userTickets, setUserTickets] = useState<TicketType[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isBuying, setIsBuying] = useState(false);
   const [ticketNumbers, setTicketNumbers] = useState<string[]>(Array(6).fill(''));
@@ -30,8 +88,10 @@ export default function DrawDetailPage() {
   const [suggestedTickets, setSuggestedTickets] = useState<string[]>([]);
   const [availableFilteredTickets, setAvailableFilteredTickets] = useState<string[]>([]);
   const [existingTicketNumbers, setExistingTicketNumbers] = useState<Set<string>>(new Set());
+  const [isReferralDialogOpen, setIsReferralDialogOpen] = useState(false);
   const { toast } = useToast();
   const { user } = useAuth();
+  const router = useRouter();
   
   const params = useParams();
   const id = params.id as string;
@@ -43,18 +103,33 @@ export default function DrawDetailPage() {
 
     if (drawSnap.exists()) {
         const drawData = drawSnap.data();
+        const endDate = drawData.endDate.toDate();
         const fetchedDraw = {
             id: drawSnap.id,
             ...drawData,
             startDate: drawData.startDate.toDate(),
-            endDate: drawData.endDate.toDate(),
+            endDate: endDate,
+            announcementDate: drawData.announcementDate ? drawData.announcementDate.toDate() : new Date(endDate.getTime() + 2 * 60 * 60 * 1000),
         } as Draw;
         setDraw(fetchedDraw);
 
         const ticketsRef = collection(db, 'tickets');
         const q = query(ticketsRef, where('drawId', '==', id));
         const ticketSnapshot = await getDocs(q);
-        const ticketNumbersSet = new Set(ticketSnapshot.docs.map(doc => doc.data().numbers as string));
+        const ticketNumbersSet = new Set<string>();
+        const allTickets: TicketType[] = [];
+
+        ticketSnapshot.forEach(doc => {
+            const data = doc.data();
+            ticketNumbersSet.add(data.numbers);
+            allTickets.push({ id: doc.id, ...data, purchaseDate: (data.purchaseDate as Timestamp).toDate() } as TicketType);
+        });
+
+        if (user) {
+            const currentUserTickets = allTickets.filter(t => t.userId === user.id);
+            setUserTickets(currentUserTickets);
+        }
+        
         setExistingTicketNumbers(ticketNumbersSet);
         
         const generateUniqueTicket = () => {
@@ -76,7 +151,7 @@ export default function DrawDetailPage() {
   useEffect(() => {
     if (!id) return;
     fetchDrawAndTickets();
-  }, [id]);
+  }, [id, user]);
 
   useEffect(() => {
     const hasInput = ticketNumbers.some(n => n !== '');
@@ -157,13 +232,32 @@ export default function DrawDetailPage() {
     // Refetch tickets to ensure our local list is up-to-date
     fetchDrawAndTickets(); 
   };
+  
+  const getDrawStatusInfo = (draw: Draw | null): { isActive: boolean; isUpcoming: boolean; message: string; countdownDate: Date | null } => {
+    if (!draw) return { isActive: false, isUpcoming: false, message: 'Loading draw...', countdownDate: null };
+    
+    const now = new Date();
+    const startDate = new Date(draw.startDate);
+    const endDate = new Date(draw.endDate);
+    
+    if (now < startDate) {
+        return { isActive: false, isUpcoming: true, message: 'This draw has not started yet!', countdownDate: startDate };
+    }
+    if (now >= startDate && now <= endDate) {
+        return { isActive: true, isUpcoming: false, message: '', countdownDate: endDate };
+    }
+    return { isActive: false, isUpcoming: false, message: 'This draw has ended.', countdownDate: null };
+  };
+
+  const statusInfo = getDrawStatusInfo(draw);
 
   const handlePayment = async () => {
     if (!user) {
         toast({ title: "Not Logged In", description: "You must be logged in to purchase a ticket.", variant: "destructive" });
+        router.push('/auth/login');
         return;
     }
-    if (!draw) return;
+    if (!draw || !statusInfo.isActive) return;
 
     setIsBuying(true);
     toast({
@@ -174,7 +268,7 @@ export default function DrawDetailPage() {
     // Simulate payment delay
     setTimeout(async () => {
       const finalTicketNumber = ticketNumbers.join('');
-      const result = await purchaseTicket(draw.id, user.id, finalTicketNumber);
+      const result = await purchaseTicket(draw.id, user.id, finalTicketNumber, false);
 
       if (result.success) {
         setLastPurchasedTicket(ticketNumbers);
@@ -197,6 +291,15 @@ export default function DrawDetailPage() {
       setIsBuying(false);
     }, 2000);
   };
+
+  const handleReferralClick = () => {
+      if (!user) {
+        toast({ title: "Not Logged In", description: "You must be logged in to use referrals.", variant: "destructive" });
+        router.push('/auth/login');
+        return;
+    }
+    setIsReferralDialogOpen(true);
+  }
   
   if (isLoading) {
     return <div className="container mx-auto py-12 px-4 flex justify-center items-center h-[calc(100vh-8rem)]"><Loader2 className="h-16 w-16 animate-spin text-primary" /></div>;
@@ -206,6 +309,8 @@ export default function DrawDetailPage() {
     // This will be handled by notFound() in useEffect, but as a fallback:
     return <div className="container mx-auto py-12 px-4 text-center"><p>Draw not found.</p></div>;
   }
+
+  const referralLink = user ? `${window.location.origin}/auth/register?ref=${user.referralCode}&drawId=${draw.id}` : '';
 
   if (isPaid && lastPurchasedTicket) {
     return (
@@ -221,7 +326,7 @@ export default function DrawDetailPage() {
             <p className="text-muted-foreground mt-2 mb-4">You're officially in the draw.</p>
             <p className="font-semibold">Your ticket number is:</p>
             <TicketDisplay numbers={lastPurchasedTicket} />
-            <p className="mt-4 text-sm text-muted-foreground">We wish you the best of luck. Winners will be announced on {draw.endDate.toLocaleDateString()}.</p>
+            <p className="mt-4 text-sm text-muted-foreground">We wish you the best of luck. Winners will be announced on {new Date(draw.announcementDate).toLocaleDateString()}.</p>
           </CardContent>
           <CardContent className="flex flex-col sm:flex-row items-center justify-center gap-4">
             <Button onClick={resetForNewPurchase} variant="outline">
@@ -239,6 +344,7 @@ export default function DrawDetailPage() {
 
   return (
     <div className="container mx-auto py-12 px-4">
+      <ReferralDialog open={isReferralDialogOpen} onOpenChange={setIsReferralDialogOpen} referralLink={referralLink}/>
       <Button variant="ghost" asChild className="mb-4">
         <Link href="/draws"><ArrowLeft className="mr-2 h-4 w-4"/> Back to Draws</Link>
       </Button>
@@ -250,9 +356,30 @@ export default function DrawDetailPage() {
         )}
         <CardHeader>
           <CardTitle className="font-headline text-3xl">{draw.name}</CardTitle>
-          <CardDescription>Prize: ₹{draw.prize.toLocaleString('en-IN')} | Draw ends on: {draw.endDate.toLocaleDateString()}</CardDescription>
+          <CardDescription>Prize: ₹{draw.prize.toLocaleString('en-IN')} | Ends on: {new Date(draw.endDate).toLocaleDateString()}</CardDescription>
         </CardHeader>
         <CardContent>
+          {!statusInfo.isActive && (
+              <div className="text-center bg-muted/50 p-4 rounded-lg mb-6">
+                  <h3 className="font-bold font-headline text-primary flex items-center justify-center gap-2">
+                    <Clock className="h-5 w-5"/>
+                    {statusInfo.message}
+                  </h3>
+                  {statusInfo.countdownDate && <Countdown endDate={statusInfo.countdownDate} />}
+              </div>
+          )}
+           {userTickets.length > 0 && (
+            <div className="mb-6">
+              <h3 className="font-semibold mb-2 text-center font-headline">Your Tickets for this Draw</h3>
+              <div className="flex flex-wrap justify-center gap-4 p-4 rounded-md bg-muted/50">
+                {userTickets.map(ticket => (
+                  <div key={ticket.id} className="p-2 border rounded-md bg-background shadow-sm">
+                    <p className="font-mono tracking-widest text-primary font-bold">{ticket.numbers}</p>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
           <div className="text-center space-y-6">
             <div>
               <h3 className="font-semibold mb-2">Enter Your 6-Digit Number</h3>
@@ -267,6 +394,7 @@ export default function DrawDetailPage() {
                     onChange={(e) => handleInputChange(index, e.target.value)}
                     onKeyDown={(e) => handleKeyDown(index, e)}
                     className="w-12 h-14 text-center text-2xl font-bold rounded-md border bg-muted/50 text-foreground focus:ring-2 focus:ring-ring"
+                    disabled={!statusInfo.isActive}
                   />
                 ))}
               </div>
@@ -274,7 +402,7 @@ export default function DrawDetailPage() {
             
             <p className="text-sm text-muted-foreground">OR</p>
             
-            <Button variant="outline" onClick={generateRandomTicket}>
+            <Button variant="outline" onClick={generateRandomTicket} disabled={!statusInfo.isActive}>
               <Dices className="mr-2 h-4 w-4"/> Generate Random Ticket
             </Button>
           </div>
@@ -282,7 +410,7 @@ export default function DrawDetailPage() {
 
         <CardContent>
           <div className="space-y-4">
-            {availableFilteredTickets.length > 0 && (
+            {availableFilteredTickets.length > 0 && statusInfo.isActive && (
                 <div>
                   <h4 className="font-semibold text-sm flex items-center gap-2 text-muted-foreground mb-2"><Search className="h-4 w-4" /> Available based on your input:</h4>
                   <div className="flex flex-wrap justify-center gap-2">
@@ -294,7 +422,7 @@ export default function DrawDetailPage() {
                   </div>
                 </div>
             )}
-             {availableFilteredTickets.length === 0 && ticketNumbers.every(n => n === '') && (
+             {availableFilteredTickets.length === 0 && ticketNumbers.every(n => n === '') && statusInfo.isActive && (
                 <div>
                   <h4 className="font-semibold text-sm text-muted-foreground mb-2">Feeling lucky? Try one of these:</h4>
                   <div className="flex flex-wrap justify-center gap-2">
@@ -310,15 +438,28 @@ export default function DrawDetailPage() {
         </CardContent>
 
         <CardContent>
-          <Button 
-            onClick={handlePayment} 
-            disabled={!isTicketComplete || isBuying} 
-            className="w-full bg-accent text-accent-foreground hover:bg-accent/90 font-bold"
-            size="lg"
-          >
-            {isBuying ? <Loader2 className="mr-2 h-5 w-5 animate-spin" /> : <CreditCard className="mr-2 h-5 w-5"/>}
-            {isBuying ? "Processing..." : `Pay ₹${draw.ticketPrice} with UPI`}
-          </Button>
+            <div className="flex flex-col sm:flex-row gap-4">
+                <Button 
+                    onClick={handlePayment} 
+                    disabled={!isTicketComplete || isBuying || !statusInfo.isActive} 
+                    className="w-full bg-accent text-accent-foreground hover:bg-accent/90 font-bold"
+                    size="lg"
+                >
+                    {isBuying ? <Loader2 className="mr-2 h-5 w-5 animate-spin" /> : <CreditCard className="mr-2 h-5 w-5"/>}
+                    {isBuying ? "Processing..." : `Pay ₹${draw.ticketPrice} with UPI`}
+                </Button>
+                {draw.referralAvailable && (
+                    <Button 
+                        onClick={handleReferralClick}
+                        disabled={isBuying || !statusInfo.isActive} 
+                        className="w-full bg-primary text-primary-foreground hover:bg-primary/90 font-bold"
+                        size="lg"
+                    >
+                        <Gift className="mr-2 h-5 w-5"/>
+                        Get with Referral
+                    </Button>
+                )}
+            </div>
         </CardContent>
       </Card>
     </div>

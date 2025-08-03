@@ -1,8 +1,9 @@
+
 "use client";
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import Link from 'next/link';
-import { useRouter } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { Button } from "@/components/ui/button";
 import {
   Card,
@@ -15,8 +16,32 @@ import {
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useToast } from '@/hooks/use-toast';
-import { ArrowRight, LogIn } from 'lucide-react';
+import { ArrowRight, Loader2 } from 'lucide-react';
 import { useAuth } from '@/context/AuthContext';
+import { checkUserExists } from './actions';
+import { getAuth, RecaptchaVerifier, signInWithPhoneNumber, type ConfirmationResult, type Auth } from 'firebase/auth';
+
+
+const setupRecaptcha = (auth: Auth) => {
+    // Only configure recaptcha if not in test mode
+    if (process.env.NEXT_PUBLIC_FIREBASE_AUTH_TEST_MODE === 'true') {
+        return null;
+    }
+    if (typeof window !== 'undefined' && !window.recaptchaVerifier) {
+      window.recaptchaVerifier = new RecaptchaVerifier(auth, 'recaptcha-container', {
+        'size': 'invisible',
+        'callback': (response: any) => {
+          // reCAPTCHA solved, allow signInWithPhoneNumber.
+          console.log("reCAPTCHA solved");
+        },
+        'expired-callback': () => {
+            // Response expired. Ask user to solve reCAPTCHA again.
+            console.log("reCAPTCHA expired");
+        }
+      });
+    }
+    return window.recaptchaVerifier;
+}
 
 
 export default function RegisterPage() {
@@ -24,44 +49,127 @@ export default function RegisterPage() {
   const [phone, setPhone] = useState('');
   const [name, setName] = useState('');
   const [otp, setOtp] = useState(Array(6).fill(''));
+  const [confirmationResult, setConfirmationResult] = useState<ConfirmationResult | null>(null);
+  const [isLoading, setIsLoading] = useState(false);
+  const [referralCode, setReferralCode] = useState('');
+  const [drawId, setDrawId] = useState('');
   const router = useRouter();
+  const searchParams = useSearchParams();
   const { toast } = useToast();
   const { register } = useAuth();
+  const auth = getAuth();
 
+  useEffect(() => {
+    const refCode = searchParams.get('ref');
+    if (refCode) {
+      setReferralCode(refCode);
+    }
+    const dId = searchParams.get('drawId');
+    if (dId) {
+      setDrawId(dId);
+    }
+  }, [searchParams]);
 
-  const handleSendOtp = (e: React.FormEvent) => {
+  const handleSendOtp = async (e: React.FormEvent) => {
     e.preventDefault();
-    // In a real app, this would use Firebase to send an OTP
-    toast({
-        title: "OTP Sent!",
-        description: `An OTP has been sent to ${phone}. (Hint: It's 123456)`
-    })
-    setStep(2);
+    setIsLoading(true);
+    
+    const userExists = await checkUserExists(phone);
+    if (userExists) {
+        toast({
+            title: "User Already Exists",
+            description: "A user with this phone number is already registered. Please log in.",
+            variant: "destructive",
+        });
+        setIsLoading(false);
+        return;
+    }
+
+    if (process.env.NEXT_PUBLIC_FIREBASE_AUTH_TEST_MODE === 'true') {
+        // Mock confirmation for test mode
+        const mockConfirmationResult = {
+            confirm: async (code: string) => {
+                if (code === '123456') {
+                    return Promise.resolve({ user: { uid: `test_user_${phone}` } });
+                } else {
+                    return Promise.reject(new Error('Invalid test OTP'));
+                }
+            }
+        } as unknown as ConfirmationResult;
+        
+        setConfirmationResult(mockConfirmationResult);
+        setStep(2);
+        toast({
+            title: "Test Mode Active",
+            description: `Enter 123456 as the OTP for ${phone}.`
+        });
+        setIsLoading(false);
+        return;
+    }
+    
+    const appVerifier = setupRecaptcha(auth);
+    if (!appVerifier) {
+         toast({
+            title: "Error",
+            description: "reCAPTCHA verifier not initialized. Please refresh.",
+            variant: "destructive"
+        });
+        setIsLoading(false);
+        return;
+    }
+    try {
+        const result = await signInWithPhoneNumber(auth, phone, appVerifier);
+        setConfirmationResult(result);
+        setStep(2);
+        toast({
+            title: "OTP Sent!",
+            description: `An OTP has been sent to ${phone}.`
+        });
+    } catch (error) {
+        console.error("Error sending OTP:", error);
+        toast({
+            title: "Error",
+            description: "Failed to send OTP. Please check the phone number or try again.",
+            variant: "destructive"
+        });
+    } finally {
+        setIsLoading(false);
+    }
   };
   
   const handleVerifyOtp = async (e: React.FormEvent) => {
     e.preventDefault();
-    if(otp.join('') === '123456') {
-        const success = await register(phone, name);
-        if (success) {
+    setIsLoading(true);
+    if (!confirmationResult) {
+        toast({ title: "Error", description: "Something went wrong. Please try sending the OTP again.", variant: "destructive"});
+        setIsLoading(false);
+        return;
+    }
+    const enteredOtp = otp.join('');
+    try {
+        await confirmationResult.confirm(enteredOtp);
+        const result = await register(phone, name, referralCode, drawId);
+        if (result.success) {
             toast({
                 title: "Registration Successful!",
-                description: `Welcome to Lucky Six, ${name}!`
+                description: `Welcome to Lucky Six, ${name}! ${result.message || ''}`
             });
             router.push('/');
         } else {
             toast({
                 title: "Registration Failed",
-                description: "A user with this phone number already exists.",
+                description: result.message || "An unknown error occurred.",
                 variant: "destructive"
             });
         }
-    } else {
+    } catch (error) {
         toast({
             title: "Invalid OTP",
             description: "The OTP you entered is incorrect. Please try again.",
             variant: "destructive"
         })
+    } finally {
+        setIsLoading(false);
     }
   }
 
@@ -86,6 +194,7 @@ export default function RegisterPage() {
 
   return (
     <div className="container mx-auto flex items-center justify-center min-h-[calc(100vh-8rem)] py-12 px-4">
+      <div id="recaptcha-container"></div>
       <Card className="w-full max-w-md shadow-xl">
         {step === 1 && (
           <form onSubmit={handleSendOtp}>
@@ -104,8 +213,8 @@ export default function RegisterPage() {
               </div>
             </CardContent>
             <CardFooter className="flex flex-col gap-4">
-              <Button type="submit" className="w-full bg-primary hover:bg-primary/90 text-primary-foreground">
-                Send OTP <ArrowRight className="ml-2 h-4 w-4" />
+              <Button type="submit" className="w-full bg-primary hover:bg-primary/90 text-primary-foreground" disabled={isLoading}>
+                {isLoading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <>Send OTP <ArrowRight className="ml-2 h-4 w-4" /></>}
               </Button>
               <p className="text-xs text-muted-foreground">
                 Already have an account?{' '}
@@ -141,10 +250,10 @@ export default function RegisterPage() {
                     </div>
                 </CardContent>
                 <CardFooter className="flex flex-col gap-4">
-                    <Button type="submit" className="w-full bg-primary hover:bg-primary/90 text-primary-foreground">
-                        Verify & Register
+                    <Button type="submit" className="w-full bg-primary hover:bg-primary/90 text-primary-foreground" disabled={isLoading}>
+                         {isLoading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : 'Verify & Register'}
                     </Button>
-                    <Button variant="link" onClick={() => setStep(1)}>
+                    <Button variant="link" onClick={() => setStep(1)} disabled={isLoading}>
                         Back
                     </Button>
                 </CardFooter>

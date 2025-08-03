@@ -7,24 +7,22 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Award, Ticket, User } from "lucide-react";
+import { Award, Ticket } from "lucide-react";
 import { WinnerAddressModal } from "@/components/WinnerAddressModal";
 import { getDraws } from "../admin/draws/actions";
 import { collection, getDocs, doc, getDoc, query, where } from "firebase/firestore";
 import { db } from "@/lib/firebase";
 import { User as UserType, Ticket as TicketType } from "@/lib/types";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { useAuth } from "@/context/AuthContext";
 
-// This is a placeholder for getting user by id. In a real app this would be a proper query.
+
 async function getUserById(id: string): Promise<UserType | null> {
     if (!id) return null;
-    // In a real app, you would fetch user from a 'users' collection
-    // For this example, we return a mock user if id is 'user-1'
-    if (id === 'user-1') {
-        return {
-            id: 'user-1',
-            name: 'Alice',
-            phone: '123'
-        } as UserType
+    const userRef = doc(db, 'users', id);
+    const userSnap = await getDoc(userRef);
+    if (userSnap.exists()) {
+        return { id: userSnap.id, ...userSnap.data() } as UserType;
     }
     return null;
 }
@@ -37,7 +35,8 @@ async function getTicketById(id: string): Promise<TicketType | null> {
         const data = ticketSnap.data();
         return {
             id: ticketSnap.id,
-            ...data
+            ...data,
+             purchaseDate: data.purchaseDate.toDate(),
         } as TicketType;
     }
     return null;
@@ -46,13 +45,13 @@ async function getTicketById(id: string): Promise<TicketType | null> {
 
 export default async function ResultsPage() {
   const allDraws = await getDraws();
-  const pastDraws = allDraws.filter(d => d.endDate <= new Date() && d.winningTicketId);
+  // A past draw is one that is finished
+  const pastDraws = allDraws.filter(d => d.status === 'finished' && d.winningTicketId);
 
   // We need to fetch winner and ticket for each draw
   const drawsWithWinnerInfo = await Promise.all(
       pastDraws.map(async (draw) => {
           const winningTicket = draw.winningTicketId ? await getTicketById(draw.winningTicketId) : null;
-          // In a real app, winnerId would be on the ticket, or queried differently.
           const winner = winningTicket ? await getUserById(winningTicket.userId) : null;
           return {...draw, winningTicket, winner}
       })
@@ -71,6 +70,9 @@ export default async function ResultsPage() {
       </div>
       <div className="space-y-8">
         {drawsWithWinnerInfo.map((draw) => {
+          const winnerName = draw.winner?.name || "Anonymous";
+          const winnerInitials = winnerName.split(' ').map(n => n[0]).join('');
+
           return (
             <Card key={draw.id} className="shadow-lg">
               <CardHeader>
@@ -78,7 +80,7 @@ export default async function ResultsPage() {
                     <div>
                         <CardTitle className="font-headline text-2xl">{draw.name}</CardTitle>
                         <CardDescription>
-                            Draw ended on {draw.endDate.toLocaleDateString()}
+                            Draw ended on {new Date(draw.endDate).toLocaleDateString()}
                         </CardDescription>
                     </div>
                     <Badge variant="default" className="bg-primary text-primary-foreground">
@@ -91,7 +93,16 @@ export default async function ResultsPage() {
                   <div className="flex flex-col items-center p-4 bg-muted/50 rounded-lg">
                     <Award className="h-8 w-8 text-accent-foreground mb-2" />
                     <h3 className="font-semibold text-muted-foreground">Winner</h3>
-                    <p className="text-lg font-bold font-headline text-primary">{draw.winner?.name || "Anonymous"}</p>
+                    <div className="flex items-center gap-2 mt-1">
+                        <Avatar>
+                            {/* In a real app, you might have user.imageUrl */}
+                            {/* <AvatarImage src={draw.winner?.imageUrl} alt={winnerName} /> */}
+                            <AvatarFallback className="bg-primary/20 text-primary font-bold">
+                                {winnerInitials}
+                            </AvatarFallback>
+                        </Avatar>
+                        <p className="text-lg font-bold font-headline text-primary">{winnerName}</p>
+                    </div>
                   </div>
                   <div className="flex flex-col items-center p-4 bg-muted/50 rounded-lg">
                     <Ticket className="h-8 w-8 text-accent-foreground mb-2" />
@@ -99,15 +110,7 @@ export default async function ResultsPage() {
                     <p className="text-lg font-bold font-mono tracking-widest text-primary">{draw.winningTicket?.numbers || "N/A"}</p>
                   </div>
                    <div className="flex flex-col items-center p-4 bg-muted/50 rounded-lg justify-center">
-                    {/* Assuming current user is 'user-1' for demo */}
-                    {draw.winner?.id === "user-1" ? (
-                      <WinnerAddressModal />
-                    ) : (
-                      <div className="flex items-center text-muted-foreground">
-                        <User className="h-5 w-5 mr-2"/>
-                        <span>Not you</span>
-                      </div>
-                    )}
+                    <WinnerAddressModal winner={draw.winner} />
                   </div>
                 </div>
               </CardContent>
