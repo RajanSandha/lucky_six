@@ -23,7 +23,11 @@ import { getAuth, RecaptchaVerifier, signInWithPhoneNumber, type ConfirmationRes
 
 
 const setupRecaptcha = (auth: Auth) => {
-    if (!window.recaptchaVerifier) {
+    // Only configure recaptcha if not in test mode
+    if (process.env.NEXT_PUBLIC_FIREBASE_AUTH_TEST_MODE === 'true') {
+        return null;
+    }
+    if (typeof window !== 'undefined' && !window.recaptchaVerifier) {
       window.recaptchaVerifier = new RecaptchaVerifier(auth, 'recaptcha-container', {
         'size': 'invisible',
         'callback': (response: any) => {
@@ -80,8 +84,39 @@ export default function RegisterPage() {
         setIsLoading(false);
         return;
     }
+
+    if (process.env.NEXT_PUBLIC_FIREBASE_AUTH_TEST_MODE === 'true') {
+        // Mock confirmation for test mode
+        const mockConfirmationResult = {
+            confirm: async (code: string) => {
+                if (code === '123456') {
+                    return Promise.resolve({ user: { uid: `test_user_${phone}` } });
+                } else {
+                    return Promise.reject(new Error('Invalid test OTP'));
+                }
+            }
+        } as unknown as ConfirmationResult;
+        
+        setConfirmationResult(mockConfirmationResult);
+        setStep(2);
+        toast({
+            title: "Test Mode Active",
+            description: `Enter 123456 as the OTP for ${phone}.`
+        });
+        setIsLoading(false);
+        return;
+    }
     
     const appVerifier = setupRecaptcha(auth);
+    if (!appVerifier) {
+         toast({
+            title: "Error",
+            description: "reCAPTCHA verifier not initialized. Please refresh.",
+            variant: "destructive"
+        });
+        setIsLoading(false);
+        return;
+    }
     try {
         const result = await signInWithPhoneNumber(auth, phone, appVerifier);
         setConfirmationResult(result);
