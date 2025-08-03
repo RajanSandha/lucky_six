@@ -20,7 +20,7 @@ import { useAuth } from "@/context/AuthContext";
 export default function Header() {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const pathname = usePathname();
-  const { user, logout } = useAuth();
+  const { user, logout, isAdmin } = useAuth();
   
   const navItems = [
     { href: "/draws", label: "Draws", public: true },
@@ -29,7 +29,7 @@ export default function Header() {
   ];
 
   const visibleNavItems = navItems.filter(item => {
-      if (item.admin) return user?.isAdmin;
+      if (item.admin) return isAdmin;
       return item.public;
   });
 

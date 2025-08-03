@@ -4,8 +4,7 @@ export type User = {
   phone: string;
   address?: string;
   ticketIds: string[];
-  isAdmin?: boolean;
-  role?: string;
+  role: 'admin' | 'user'; // Explicitly add role
   referralCode?: string;
   referralsMade?: number;
 };

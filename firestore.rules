@@ -3,7 +3,7 @@ rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
 
-    // Helper functions
+    // Helper Functions
     function isSignedIn() {
       return request.auth != null;
     }
@@ -12,46 +12,51 @@ service cloud.firestore {
       return isSignedIn() && request.auth.uid == userId;
     }
     
-    // NOTE: Using get() in security rules is subject to limitations, especially in batch writes.
-    // A better long-term solution is to use Custom Claims to embed the role in the auth token.
+    // NOTE: This relies on Custom Claims being set for the user.
+    // You must use a server-side process (e.g., Cloud Function) to set this.
     function isAdmin() {
-      // This check is now simplified to avoid get() call limits in batch writes.
-      // It relies on the client being a trusted admin client.
-      return isSignedIn() && exists(/databases/$(database)/documents/users/$(request.auth.uid)) && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin';
-    }
-    
-    // Check if the user is only updating their referral count and tickets
-    function isReferralUpdate(requestData, resourceData) {
-      return requestData.keys().hasAll(['referralsMade', 'ticketIds'])
-          && requestData.referralsMade == resourceData.referralsMade + 1;
+      return isSignedIn() && request.auth.token.role == 'admin';
     }
 
-    // Collections
+    // Draws Collection
+    // - Anyone can view draws.
+    // - Only admins can create, update, or delete draws.
     match /draws/{drawId} {
       allow read: if true;
-      allow create, update, delete: if isAdmin();
+      allow write: if isAdmin();
     }
 
+    // Users Collection
     match /users/{userId} {
+      // Anyone can read user profiles (needed for winner names, etc.).
       allow read: if true;
       
-      // An admin can create any user (for mock data).
-      // A new user can create their own document.
-      allow create: if isAdmin() || isOwner(userId);
+      // Allow creation if the user is signed in (for registration).
+      allow create: if isSignedIn();
+
+      // Allow updates if:
+      // 1. The user is the owner of the document.
+      // 2. An admin is performing the update.
+      // 3. The referral system is updating only 'ticketIds' and 'referralsMade'.
+      allow update: if isOwner(userId) || isAdmin() || 
+        (isSignedIn() && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['ticketIds', 'referralsMade']));
       
-      // A user can update their own document.
-      // The referral system can update another user's referral count.
-      allow update: if isOwner(userId) || (isSignedIn() && isReferralUpdate(request.resource.data, resource.data));
-      
+      // Only admins can delete users.
       allow delete: if isAdmin();
     }
 
+    // Tickets Collection
     match /tickets/{ticketId} {
+      // Anyone can read ticket data.
       allow read: if true;
-      // An admin can create tickets (for mock data).
-      // Any signed-in user can create a ticket.
+      
+      // Allow creation if:
+      // 1. The user is signed in (for purchasing a ticket).
+      // 2. An admin is creating it (for mock data).
       allow create: if isSignedIn();
-      allow update, delete: if isAdmin();
+
+      // Nobody should update or delete tickets.
+      allow update, delete: if false;
     }
   }
 }

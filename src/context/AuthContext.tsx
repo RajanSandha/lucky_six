@@ -6,10 +6,11 @@ import { db } from '@/lib/firebase';
 import { doc, getDoc, setDoc, collection, query, where, getDocs, updateDoc, increment, arrayUnion, writeBatch, Timestamp } from 'firebase/firestore';
 import type { User, Draw } from '@/lib/types';
 import { Loader2 } from 'lucide-react';
+import { getAuth } from 'firebase/auth';
 
 // Define the shape of the context
 interface AuthContextType {
-  user: (User & { isAdmin: boolean }) | null;
+  user: User | null;
   loading: boolean;
   login: (phone: string) => Promise<boolean>;
   register: (phone: string, name: string, referralCode?: string, drawId?: string) => Promise<{success: boolean, message?: string}>;
@@ -48,7 +49,7 @@ const AuthContext = createContext<AuthContextType>({
 
 // Create a provider component
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  const [user, setUser] = useState<(User & { isAdmin: boolean }) | null>(null);
+  const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -56,10 +57,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     const storedUser = localStorage.getItem('lucky-six-user');
     if (storedUser) {
       const parsedUser = JSON.parse(storedUser);
-      setUser({
-        ...parsedUser,
-        isAdmin: parsedUser.role === 'admin',
-      });
+      setUser(parsedUser);
     }
     setLoading(false);
   }, []);
@@ -78,10 +76,13 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       
       const userDoc = querySnapshot.docs[0];
       const userData = { id: userDoc.id, ...userDoc.data() } as User;
-      const fullUser = { ...userData, isAdmin: userData.role === 'admin' };
+      
+      // Force refresh the token to get custom claims
+      const auth = getAuth();
+      await auth.currentUser?.getIdToken(true);
 
-      setUser(fullUser);
-      localStorage.setItem('lucky-six-user', JSON.stringify(fullUser));
+      setUser(userData);
+      localStorage.setItem('lucky-six-user', JSON.stringify(userData));
       return true;
 
     } catch (error) {
@@ -111,6 +112,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
             id: userId,
             name,
             phone,
+            role: 'user', // Set default role
             ticketIds: [],
             referralCode: newReferralCode,
             referralsMade: 0,
@@ -174,10 +176,13 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         batch.set(userDocRef, newUser);
         
         await batch.commit();
+        
+        // Force refresh the token to get custom claims (even for new users)
+        const auth = getAuth();
+        await auth.currentUser?.getIdToken(true);
 
-        const fullUser = { ...newUser, isAdmin: newUser.role === 'admin' };
-        setUser(fullUser);
-        localStorage.setItem('lucky-six-user', JSON.stringify(fullUser));
+        setUser(newUser);
+        localStorage.setItem('lucky-six-user', JSON.stringify(newUser));
 
         return { success: true, message: referralMessage };
 
@@ -216,5 +221,7 @@ export const useAuth = () => {
   if (context === undefined) {
     throw new Error('useAuth must be used within an AuthProvider');
   }
-  return context;
+  // Add isAdmin helper to the hook
+  const isAdmin = context.user?.role === 'admin';
+  return { ...context, isAdmin };
 };
