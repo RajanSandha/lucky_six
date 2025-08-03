@@ -1,46 +1,45 @@
-
 rules_version = '2';
 
 service cloud.firestore {
   match /databases/{database}/documents {
 
-    // Helper functions
+    // Helper function to check if a user is signed in
     function isSignedIn() {
       return request.auth != null;
     }
 
-    function isOwner(userId) {
-      return request.auth.uid == userId;
-    }
-    
-    function getUserData(userId) {
-        return get(/databases/$(database)/documents/users/$(userId)).data;
+    // Helper function to check if the user is an admin
+    function isAdmin() {
+      return isSignedIn() && request.auth.token.isAdmin == true;
     }
 
-    // Public access for draws
-    match /draws/{drawId} {
-      allow read: if true;
-      // Only admins should create, update, or delete draws.
-      // This will be managed by server-side logic for now.
-      allow write: if false; 
-    }
-
-    // Users can read public profiles, but only write to their own.
     match /users/{userId} {
       allow read: if true;
-      // A user can create their own document, and can only update their own document.
+      
+      // Allow creating a user document if the user is signed in.
       allow create: if isSignedIn();
-      allow update: if isSignedIn() && isOwner(userId);
-      // Deleting users should be an admin action.
-      allow delete: if false;
+
+      // Allow updating a user document if:
+      // 1. The user is updating their own document.
+      // 2. The user is signed in and is only updating the referral count and ticket list of another user.
+      allow update: if (isSignedIn() && request.auth.uid == resource.id) || 
+                       (isSignedIn() && request.writeFields.hasAll(['referralsMade', 'ticketIds']) && request.writeFields.size() == 2);
+      
+      allow delete: if false; // Users cannot delete their own accounts from the client
     }
 
-    // Tickets can be read publicly to show winner details.
+    match /draws/{drawId} {
+      allow read: if true;
+      // Only admins can create, update, or delete draws
+      allow create, update, delete: if isAdmin();
+    }
+
     match /tickets/{ticketId} {
       allow read: if true;
-      // Users can create tickets for themselves (validated by server-side logic).
+      // Allow ticket creation only if the user is signed in.
+      // The server-side logic will ensure the correct userId is set.
       allow create: if isSignedIn();
-      // Tickets are immutable once created.
+      // Tickets are immutable from the client-side
       allow update, delete: if false;
     }
   }
