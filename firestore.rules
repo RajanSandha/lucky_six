@@ -1,3 +1,4 @@
+
 rules_version = '2';
 
 service cloud.firestore {
@@ -8,41 +9,39 @@ service cloud.firestore {
       return request.auth != null;
     }
 
-    function isUser(userId) {
-      // In this app, the user ID is the Firestore document ID, not the Firebase Auth UID.
-      // We will trust the server-side logic to create user docs and tickets correctly.
-      // For read/update, we check if the user is signed in.
-      return isSignedIn();
-    }
-
-    // Publicly readable, admin-only writable
-    match /draws/{drawId} {
-      allow read: if true;
-      allow write: if false; // Only backend can write for now
+    function isOwner(userId) {
+      return request.auth.uid == userId;
     }
     
-    // Users can read/write their own data
+    function getUserData(userId) {
+        return get(/databases/$(database)/documents/users/$(userId)).data;
+    }
+
+    // Public access for draws
+    match /draws/{drawId} {
+      allow read: if true;
+      // Only admins should create, update, or delete draws.
+      // This will be managed by server-side logic for now.
+      allow write: if false; 
+    }
+
+    // Users can read public profiles, but only write to their own.
     match /users/{userId} {
-      allow read: if isUser(userId);
-      // Only signed-in users can create a user document. The server logic handles assigning the correct ID.
+      allow read: if true;
+      // A user can create their own document, and can only update their own document.
       allow create: if isSignedIn();
-      allow update: if isUser(userId);
-      allow delete: if false; // No user deletion
+      allow update: if isSignedIn() && isOwner(userId);
+      // Deleting users should be an admin action.
+      allow delete: if false;
     }
 
-    // Tickets can be created by signed-in users for themselves. Read is restricted.
+    // Tickets can be read publicly to show winner details.
     match /tickets/{ticketId} {
-      // Only signed-in users can create tickets. The server logic assigns the userId.
+      allow read: if true;
+      // Users can create tickets for themselves (validated by server-side logic).
       allow create: if isSignedIn();
-      // Users can only read tickets if they are the owner of the ticket.
-      allow read: if isSignedIn() && resource.data.userId == request.resource.data.id;
+      // Tickets are immutable once created.
       allow update, delete: if false;
-    }
-
-    // Public announcements can be read by anyone
-    match /publicAnnouncements/{announcementId} {
-        allow read: if true;
-        allow write: if false; // Only backend can write
     }
   }
 }
