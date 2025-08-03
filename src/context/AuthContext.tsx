@@ -12,6 +12,7 @@ import { getAuth } from 'firebase/auth';
 interface AuthContextType {
   user: User | null;
   loading: boolean;
+  isAdmin: boolean;
   login: (phone: string) => Promise<boolean>;
   register: (phone: string, name: string, referralCode?: string, drawId?: string) => Promise<{success: boolean, message?: string}>;
   logout: () => void;
@@ -42,6 +43,7 @@ const generateUniqueTicketForDraw = async (drawId: string): Promise<string> => {
 const AuthContext = createContext<AuthContextType>({
   user: null,
   loading: true,
+  isAdmin: false,
   login: async () => false,
   register: async () => ({ success: false }),
   logout: () => {},
@@ -51,6 +53,7 @@ const AuthContext = createContext<AuthContextType>({
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
+  const [isAdmin, setIsAdmin] = useState(false);
 
   useEffect(() => {
     // Check for a logged-in user in localStorage to persist session
@@ -58,6 +61,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     if (storedUser) {
       const parsedUser = JSON.parse(storedUser);
       setUser(parsedUser);
+      if (parsedUser.role === 'admin') {
+          setIsAdmin(true);
+      }
     }
     setLoading(false);
   }, []);
@@ -77,11 +83,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       const userDoc = querySnapshot.docs[0];
       const userData = { id: userDoc.id, ...userDoc.data() } as User;
       
-      // Force refresh the token to get custom claims
-      const auth = getAuth();
-      await auth.currentUser?.getIdToken(true);
-
       setUser(userData);
+      setIsAdmin(userData.role === 'admin');
       localStorage.setItem('lucky-six-user', JSON.stringify(userData));
       return true;
 
@@ -96,6 +99,15 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const register = async (phone: string, name: string, referralCode?: string, drawId?: string): Promise<{success: boolean, message?: string}> => {
     setLoading(true);
     try {
+        const auth = getAuth();
+        const currentUser = auth.currentUser;
+
+        if (!currentUser) {
+            return { success: false, message: "User not authenticated. Please try again." };
+        }
+
+        const userId = currentUser.uid;
+
         const usersRef = collection(db, "users");
         const q = query(usersRef, where("phone", "==", phone));
         const querySnapshot = await getDocs(q);
@@ -104,15 +116,13 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
             return { success: false, message: "User with this phone number already exists." };
         }
 
-        // Generate a unique referral code for the new user
         const newReferralCode = `L6-${generate6DigitString()}`;
-        const userId = doc(collection(db, 'users')).id;
 
         const newUser: User = {
             id: userId,
             name,
             phone,
-            role: 'user', // Set default role
+            role: 'user',
             ticketIds: [],
             referralCode: newReferralCode,
             referralsMade: 0,
@@ -121,7 +131,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         let referralMessage = '';
         const batch = writeBatch(db);
 
-        // Handle referral logic
         if (referralCode && drawId) {
             const referrerQuery = query(collection(db, 'users'), where('referralCode', '==', referralCode));
             const referrerSnap = await getDocs(referrerQuery);
@@ -139,7 +148,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
             const referrerDoc = referrerSnap.docs[0];
             const referrer = { id: referrerDoc.id, ...referrerDoc.data() } as User;
 
-            // Issue ticket to new user
             const newUserTicketRef = doc(collection(db, 'tickets'));
             const newUserTicketNumber = await generateUniqueTicketForDraw(drawId);
             batch.set(newUserTicketRef, {
@@ -151,7 +159,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
             });
             newUser.ticketIds.push(newUserTicketRef.id);
 
-            // Issue ticket to referrer
             const referrerTicketRef = doc(collection(db, 'tickets'));
             const referrerTicketNumber = await generateUniqueTicketForDraw(drawId);
             batch.set(referrerTicketRef, {
@@ -162,7 +169,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
                 isReferral: true,
             });
             
-            // Update referrer's data
             const referrerUserRef = doc(db, 'users', referrer.id);
             batch.update(referrerUserRef, { 
                 referralsMade: increment(1),
@@ -177,11 +183,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         
         await batch.commit();
         
-        // Force refresh the token to get custom claims (even for new users)
-        const auth = getAuth();
-        await auth.currentUser?.getIdToken(true);
-
         setUser(newUser);
+        setIsAdmin(newUser.role === 'admin');
         localStorage.setItem('lucky-six-user', JSON.stringify(newUser));
 
         return { success: true, message: referralMessage };
@@ -197,6 +200,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   const logout = () => {
     setUser(null);
+    setIsAdmin(false);
     localStorage.removeItem('lucky-six-user');
   };
 
@@ -209,7 +213,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   }
 
   return (
-    <AuthContext.Provider value={{ user, loading, login, register, logout }}>
+    <AuthContext.Provider value={{ user, loading, isAdmin, login, register, logout }}>
       {children}
     </AuthContext.Provider>
   );
@@ -221,7 +225,5 @@ export const useAuth = () => {
   if (context === undefined) {
     throw new Error('useAuth must be used within an AuthProvider');
   }
-  // Add isAdmin helper to the hook
-  const isAdmin = context.user?.role === 'admin';
-  return { ...context, isAdmin };
+  return context;
 };

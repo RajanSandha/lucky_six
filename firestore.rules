@@ -1,9 +1,10 @@
+
 rules_version = '2';
 
 service cloud.firestore {
   match /databases/{database}/documents {
-
-    // HELPER FUNCTIONS
+  
+    // Helper functions
     function isSignedIn() {
       return request.auth != null;
     }
@@ -11,56 +12,52 @@ service cloud.firestore {
     function isOwner(userId) {
       return isSignedIn() && request.auth.uid == userId;
     }
-
+    
+    // Check custom claims for admin role. This is the most secure method.
     function isAdmin() {
-      // This checks for a custom claim. You must set this on the user's auth token
-      // from a backend environment for admin users.
-      // e.g. {role: 'admin'}
       return isSignedIn() && request.auth.token.role == 'admin';
     }
-    
-    // Check if the only fields being updated are for the referral system.
-    function isReferralUpdate() {
-        return request.resource.data.diff(resource.data).affectedKeys().hasOnly(['ticketIds', 'referralsMade']);
-    }
 
-    // COLLECTIONS
+    // `users` collection rules
     match /users/{userId} {
-      // Allow anyone to get a user's public profile (for winner display name)
-      allow get: if true;
+      // ANYONE can query the users collection (to check if a user exists)
+      // or get a specific user document (to display winner names).
+      allow get, list: if true;
       
-      // Allow querying the users collection (needed for checking if a user exists on registration)
-      allow list: if true;
-
-      // Allow a user to create their own document
-      allow create: if isOwner(userId);
+      // A user can CREATE their OWN user document upon registration.
+      // The `id` field in the new document must match the user's auth UID.
+      allow create: if isSignedIn() && request.resource.data.id == request.auth.uid;
       
-      // Allow a user to update their own document.
-      // Also allow an update to another user ONLY for referral system fields.
-      allow update: if isOwner(userId) || (isSignedIn() && isReferralUpdate());
-      
-      // No one can delete users from the client
+      // A user can UPDATE their OWN document.
+      // Additionally, ANY signed-in user can update another user's `ticketIds` and `referralsMade` fields.
+      // This is specifically for the referral system to grant free tickets.
+      allow update: if isOwner(userId) || 
+                      (isSignedIn() && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['ticketIds', 'referralsMade']));
+                      
+      // NO ONE can delete user documents through the app.
       allow delete: if false;
     }
-
+    
+    // `draws` collection rules
     match /draws/{drawId} {
-      // Anyone can view draws
+      // ANYONE can read draw information.
       allow read: if true;
       
-      // Only admins can create, update, or delete draws
+      // ONLY an ADMIN can create, update, or delete draws.
       allow write: if isAdmin();
     }
-
+    
+    // `tickets` collection rules
     match /tickets/{ticketId} {
-      // Anyone can view any ticket (for winner announcements)
+      // ANYONE can read ticket information (to display in winner announcements).
       allow read: if true;
-
-      // Only signed-in users can create tickets, or an admin (for mock data)
-      allow create: if isSignedIn() || isAdmin();
       
-      // Tickets cannot be updated or deleted from the client
-      allow update: if false;
-      allow delete: if false;
+      // Any SIGNED IN user can create a ticket (purchase).
+      // An ADMIN can also create tickets (for mock data).
+      allow create: if isSignedIn();
+      
+      // NO ONE can update or delete tickets once created.
+      allow update, delete: if false;
     }
   }
 }
