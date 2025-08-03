@@ -4,40 +4,52 @@ rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
 
-    // Helper function to check if a user is authenticated
-    function isSignedIn() {
+    // Helper functions
+    function isUserAuthenticated() {
       return request.auth != null;
     }
-    
-    // Helper function to check if the user is the owner of the document
+
     function isOwner(userId) {
       return request.auth.uid == userId;
     }
 
-    // Users can only read and update their own data. They can create their own user document.
-    match /users/{userId} {
-      allow read, update: if isSignedIn() && isOwner(userId);
-      allow create: if isSignedIn();
+    function isAdmin() {
+      // In a real app, this should check a custom claim or a field in the user's doc.
+      // For now, we assume no one is an admin by default for security.
+      // return get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin';
+      return false; 
     }
 
-    // Anyone can read draw information. Only admins should write (not enforced yet).
+    // Users can be read publicly (only non-sensitive fields)
+    // but only the owner can write to their own document.
+    match /users/{userId} {
+      allow read: if isUserAuthenticated();
+      allow create: if !exists(/databases/$(database)/documents/users/$(userId)); // Anyone can create a user doc (register)
+      allow update: if isOwner(userId) && !("role" in request.resource.data); // User can update their data, but cannot change their role.
+      allow delete: if isAdmin();
+    }
+
+    // Draws can be read by anyone. Only admins can create/update/delete them.
     match /draws/{drawId} {
       allow read: if true;
-      allow write: if false; // Lock down writes for now. To be replaced with admin check.
-    }
-
-    // Users can only create tickets for themselves. They can read tickets they own.
-    match /tickets/{ticketId} {
-      allow create: if isSignedIn() && request.resource.data.userId == request.auth.uid;
-      allow read: if isSignedIn() && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.ticketIds[?ticketId];
-      allow update, delete: if false; // Nobody can update or delete tickets
+      allow create, update, delete: if isAdmin();
+      
+      // Public announcements subcollection can be read by anyone.
+      // Only the backend (via admin SDK) should write here, so we deny client writes.
+      match /publicAnnouncements/{announcementId} {
+        allow read: if true;
+        allow write: if false; // Deny all client writes
+      }
     }
     
-    // Public announcements can be read by anyone
-    match /draws/{drawId}/publicAnnouncements/{announcementId} {
-        allow read: if true;
-        allow write: if false; // Only backend processes can write here
-    }
 
+    // Tickets can only be created by the user who owns them.
+    // Reading tickets should be restricted.
+    match /tickets/{ticketId} {
+      allow read: if isOwner(request.resource.data.userId) || isAdmin();
+      // Allow create if user is authenticated and is creating a ticket for themselves.
+      allow create: if isUserAuthenticated() && isOwner(request.resource.data.userId);
+      allow update, delete: if isAdmin();
+    }
   }
 }
