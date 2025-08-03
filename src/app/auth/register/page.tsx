@@ -19,7 +19,7 @@ import { useToast } from '@/hooks/use-toast';
 import { ArrowRight, Loader2 } from 'lucide-react';
 import { useAuth } from '@/context/AuthContext';
 import { checkUserExists } from './actions';
-import { getAuth, RecaptchaVerifier, signInWithPhoneNumber, type ConfirmationResult, type Auth } from 'firebase/auth';
+import { getAuth, RecaptchaVerifier, signInWithPhoneNumber, type ConfirmationResult, type Auth, type User } from 'firebase/auth';
 
 
 const setupRecaptcha = (auth: Auth) => {
@@ -90,7 +90,8 @@ export default function RegisterPage() {
         const mockConfirmationResult = {
             confirm: async (code: string) => {
                 if (code === '123456') {
-                    return Promise.resolve({ user: { uid: `test_user_${phone}` } });
+                    const mockUser = { uid: `test_user_${phone}` } as User;
+                    return Promise.resolve({ user: mockUser });
                 } else {
                     return Promise.reject(new Error('Invalid test OTP'));
                 }
@@ -147,8 +148,8 @@ export default function RegisterPage() {
     }
     const enteredOtp = otp.join('');
     try {
-        await confirmationResult.confirm(enteredOtp);
-        const result = await register(phone, name, referralCode, drawId);
+        const credential = await confirmationResult.confirm(enteredOtp);
+        const result = await register(credential.user, name, phone, referralCode, drawId);
         if (result.success) {
             toast({
                 title: "Registration Successful!",

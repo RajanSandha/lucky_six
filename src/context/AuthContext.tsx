@@ -6,7 +6,7 @@ import { db } from '@/lib/firebase';
 import { doc, getDoc, setDoc, collection, query, where, getDocs, updateDoc, increment, arrayUnion, writeBatch, Timestamp } from 'firebase/firestore';
 import type { User, Draw } from '@/lib/types';
 import { Loader2 } from 'lucide-react';
-import { getAuth } from 'firebase/auth';
+import { getAuth, type User as AuthUser } from 'firebase/auth';
 
 // Define the shape of the context
 interface AuthContextType {
@@ -14,7 +14,7 @@ interface AuthContextType {
   loading: boolean;
   isAdmin: boolean;
   login: (phone: string) => Promise<boolean>;
-  register: (phone: string, name: string, referralCode?: string, drawId?: string) => Promise<{success: boolean, message?: string}>;
+  register: (authUser: AuthUser, name: string, phone: string, referralCode?: string, drawId?: string) => Promise<{success: boolean, message?: string}>;
   logout: () => void;
 }
 
@@ -96,17 +96,14 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
   };
 
-  const register = async (phone: string, name: string, referralCode?: string, drawId?: string): Promise<{success: boolean, message?: string}> => {
+  const register = async (authUser: AuthUser, name: string, phone: string, referralCode?: string, drawId?: string): Promise<{success: boolean, message?: string}> => {
     setLoading(true);
     try {
-        const auth = getAuth();
-        const currentUser = auth.currentUser;
-
-        if (!currentUser) {
+        if (!authUser) {
             return { success: false, message: "User not authenticated. Please try again." };
         }
 
-        const userId = currentUser.uid;
+        const userId = authUser.uid;
 
         const usersRef = collection(db, "users");
         const q = query(usersRef, where("phone", "==", phone));
