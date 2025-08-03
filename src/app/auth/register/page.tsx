@@ -19,7 +19,25 @@ import { useToast } from '@/hooks/use-toast';
 import { ArrowRight, Loader2 } from 'lucide-react';
 import { useAuth } from '@/context/AuthContext';
 import { checkUserExists } from './actions';
-import { getAuth, RecaptchaVerifier, signInWithPhoneNumber, type ConfirmationResult } from 'firebase/auth';
+import { getAuth, RecaptchaVerifier, signInWithPhoneNumber, type ConfirmationResult, type Auth } from 'firebase/auth';
+
+
+const setupRecaptcha = (auth: Auth) => {
+    if (!window.recaptchaVerifier) {
+      window.recaptchaVerifier = new RecaptchaVerifier(auth, 'recaptcha-container', {
+        'size': 'invisible',
+        'callback': (response: any) => {
+          // reCAPTCHA solved, allow signInWithPhoneNumber.
+          console.log("reCAPTCHA solved");
+        },
+        'expired-callback': () => {
+            // Response expired. Ask user to solve reCAPTCHA again.
+            console.log("reCAPTCHA expired");
+        }
+      });
+    }
+    return window.recaptchaVerifier;
+}
 
 
 export default function RegisterPage() {
@@ -48,17 +66,6 @@ export default function RegisterPage() {
     }
   }, [searchParams]);
 
-  const setupRecaptcha = () => {
-    if (!window.recaptchaVerifier) {
-      window.recaptchaVerifier = new RecaptchaVerifier(auth, 'recaptcha-container', {
-        'size': 'invisible',
-        'callback': (response: any) => {
-          // reCAPTCHA solved, allow signInWithPhoneNumber.
-        }
-      });
-    }
-  }
-
   const handleSendOtp = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsLoading(true);
@@ -74,8 +81,7 @@ export default function RegisterPage() {
         return;
     }
     
-    setupRecaptcha();
-    const appVerifier = window.recaptchaVerifier;
+    const appVerifier = setupRecaptcha(auth);
     try {
         const result = await signInWithPhoneNumber(auth, phone, appVerifier);
         setConfirmationResult(result);
