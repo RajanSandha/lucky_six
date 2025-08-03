@@ -3,61 +3,12 @@ rules_version = '2';
 
 service cloud.firestore {
   match /databases/{database}/documents {
-  
-    // Helper functions
-    function isSignedIn() {
-      return request.auth != null;
-    }
-
-    function isOwner(userId) {
-      return isSignedIn() && request.auth.uid == userId;
-    }
-    
-    // Check custom claims for admin role. This is the most secure method.
-    function isAdmin() {
-      return isSignedIn() && request.auth.token.role == 'admin';
-    }
-
-    // `users` collection rules
-    match /users/{userId} {
-      // ANYONE can query the users collection (to check if a user exists)
-      // or get a specific user document (to display winner names).
-      allow get, list: if true;
-      
-      // A user can CREATE their OWN user document upon registration.
-      // The `id` field in the new document must match the user's auth UID.
-      allow create: if isSignedIn() && request.resource.data.id == request.auth.uid;
-      
-      // A user can UPDATE their OWN document.
-      // Additionally, ANY signed-in user can update another user's `ticketIds` and `referralsMade` fields.
-      // This is specifically for the referral system to grant free tickets.
-      allow update: if isOwner(userId) || 
-                      (isSignedIn() && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['ticketIds', 'referralsMade']));
-                      
-      // NO ONE can delete user documents through the app.
-      allow delete: if false;
-    }
-    
-    // `draws` collection rules
-    match /draws/{drawId} {
-      // ANYONE can read draw information.
-      allow read: if true;
-      
-      // ONLY an ADMIN can create, update, or delete draws.
-      allow write: if isAdmin();
-    }
-    
-    // `tickets` collection rules
-    match /tickets/{ticketId} {
-      // ANYONE can read ticket information (to display in winner announcements).
-      allow read: if true;
-      
-      // Any SIGNED IN user can create a ticket (purchase).
-      // An ADMIN can also create tickets (for mock data).
-      allow create: if isSignedIn();
-      
-      // NO ONE can update or delete tickets once created.
-      allow update, delete: if false;
+    // Allow read and write access to all documents
+    // for testing purposes.
+    // WARNING: These rules are insecure and should be updated
+    // before launching to production.
+    match /{document=**} {
+      allow read, write: if true;
     }
   }
 }
