@@ -2,45 +2,37 @@ rules_version = '2';
 
 service cloud.firestore {
   match /databases/{database}/documents {
-
-    // Helper function to check if a user is signed in
+  
     function isSignedIn() {
       return request.auth != null;
     }
+    
+    function isOwner(userId) {
+      return isSignedIn() && request.auth.uid == userId;
+    }
 
-    // Helper function to check if the user is an admin
     function isAdmin() {
-      return isSignedIn() && request.auth.token.isAdmin == true;
+      return isSignedIn() && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin';
     }
 
     match /users/{userId} {
       allow read: if true;
-      
-      // Allow creating a user document if the user is signed in.
-      allow create: if isSignedIn();
+      allow create: if isSignedIn() || isAdmin();
+      allow update: if isOwner(userId) || 
+                       (isSignedIn() && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['referralsMade', 'ticketIds']));
+      allow delete: if isOwner(userId);
+    }
 
-      // Allow updating a user document if:
-      // 1. The user is updating their own document.
-      // 2. The user is signed in and is only updating the referral count and ticket list of another user.
-      allow update: if (isSignedIn() && request.auth.uid == resource.id) || 
-                       (isSignedIn() && request.writeFields.hasAll(['referralsMade', 'ticketIds']) && request.writeFields.size() == 2);
-      
-      allow delete: if false; // Users cannot delete their own accounts from the client
+    match /tickets/{ticketId} {
+      allow read: if true;
+      allow create: if isSignedIn() || isAdmin();
+      allow update, delete: if false; 
     }
 
     match /draws/{drawId} {
       allow read: if true;
       // Only admins can create, update, or delete draws
       allow create, update, delete: if isAdmin();
-    }
-
-    match /tickets/{ticketId} {
-      allow read: if true;
-      // Allow ticket creation only if the user is signed in.
-      // The server-side logic will ensure the correct userId is set.
-      allow create: if isSignedIn();
-      // Tickets are immutable from the client-side
-      allow update, delete: if false;
     }
   }
 }
