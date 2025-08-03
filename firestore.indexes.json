@@ -1,4 +1,3 @@
-
 {
   "indexes": [
     {
@@ -7,50 +6,10 @@
       "fields": [
         {
           "fieldPath": "announcementDate",
-          "order": "DESCENDING"
-        }
-      ]
-    },
-    {
-      "collectionGroup": "draws",
-      "queryScope": "COLLECTION",
-      "fields": [
-        {
-          "fieldPath": "endDate",
-          "order": "DESCENDING"
-        }
-      ]
-    },
-    {
-      "collectionGroup": "tickets",
-      "queryScope": "COLLECTION",
-      "fields": [
-        {
-          "fieldPath": "drawId",
           "order": "ASCENDING"
         },
         {
-          "fieldPath": "numbers",
-          "order": "ASCENDING"
-        }
-      ]
-    },
-    {
-      "collectionGroup": "users",
-      "queryScope": "COLLECTION",
-      "fields": [
-        {
-          "fieldPath": "phone",
-          "order": "ASCENDING"
-        }
-      ]
-    },
-    {
-      "collectionGroup": "users",
-      "queryScope": "COLLECTION",
-      "fields": [
-        {
-          "fieldPath": "referralCode",
+          "fieldPath": "status",
           "order": "ASCENDING"
         }
       ]
