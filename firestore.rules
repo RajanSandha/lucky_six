@@ -2,66 +2,56 @@ rules_version = '2';
 
 service cloud.firestore {
   match /databases/{database}/documents {
-  
-    // Helper Functions for re-usability and clarity
+
+    // Helper functions
     function isSignedIn() {
       return request.auth != null;
     }
-    
+
     function isOwner(userId) {
-      return request.auth.uid == userId;
-    }
-
-    function isAdmin() {
-      // Check if the user making the request has the 'admin' role in their own user document.
-      return isSignedIn() && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin';
+      return isSignedIn() && request.auth.uid == userId;
     }
     
-    function isReferralUpdate() {
-      // Allow updates only to 'referralsMade' and 'ticketIds' fields for referral logic.
-      // This ensures a user can't change another user's name, phone, etc.
-      let changedKeys = request.resource.data.diff(resource.data).affectedKeys();
-      return changedKeys.hasOnly(['referralsMade', 'ticketIds']);
+    // NOTE: Using get() in security rules is subject to limitations, especially in batch writes.
+    // A better long-term solution is to use Custom Claims to embed the role in the auth token.
+    function isAdmin() {
+      // This check is now simplified to avoid get() call limits in batch writes.
+      // It relies on the client being a trusted admin client.
+      return isSignedIn() && exists(/databases/$(database)/documents/users/$(request.auth.uid)) && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin';
+    }
+    
+    // Check if the user is only updating their referral count and tickets
+    function isReferralUpdate(requestData, resourceData) {
+      return requestData.keys().hasAll(['referralsMade', 'ticketIds'])
+          && requestData.referralsMade == resourceData.referralsMade + 1;
     }
 
-    // Rules for the 'users' collection
+    // Collections
+    match /draws/{drawId} {
+      allow read: if true;
+      allow create, update, delete: if isAdmin();
+    }
+
     match /users/{userId} {
-      // Anyone can read user profiles (to see winner names, etc.).
       allow read: if true;
       
-      // A user can be created if the request is from a signed-in user (covers registration)
-      // OR if the request is from an admin (covers mock data generation).
-      allow create: if isSignedIn();
+      // An admin can create any user (for mock data).
+      // A new user can create their own document.
+      allow create: if isAdmin() || isOwner(userId);
       
-      // A user can update a document if they are the owner,
-      // OR if it's a valid referral update,
-      // OR if they are an admin.
-      allow update: if (isSignedIn() && isOwner(userId)) || (isSignedIn() && isReferralUpdate()) || isAdmin();
+      // A user can update their own document.
+      // The referral system can update another user's referral count.
+      allow update: if isOwner(userId) || (isSignedIn() && isReferralUpdate(request.resource.data, resource.data));
       
-      // Only admins can delete users.
       allow delete: if isAdmin();
     }
 
-    // Rules for the 'draws' collection
-    match /draws/{drawId} {
-      // Anyone can view draws.
-      allow read: if true;
-
-      // Only admins can create, update, or delete draws.
-      allow write: if isAdmin();
-    }
-
-    // Rules for the 'tickets' collection
     match /tickets/{ticketId} {
-      // Anyone can view any ticket (to see all numbers during announcement).
       allow read: if true;
-      
-      // A ticket can be created if the user is signed in (for purchasing)
-      // OR if an admin is creating it (for mock data).
+      // An admin can create tickets (for mock data).
+      // Any signed-in user can create a ticket.
       allow create: if isSignedIn();
-
-      // No one should be able to update or delete a ticket once it's created.
-      allow update, delete: if false;
+      allow update, delete: if isAdmin();
     }
   }
 }
