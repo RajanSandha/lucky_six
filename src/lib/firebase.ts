@@ -10,7 +10,7 @@ import { getStorage } from "firebase/storage";
 const firebaseConfig = {
   projectId: "lucky-six-bxkzw",
   appId: "1:902776449872:web:76f0896539572d2cf8da55",
-  storageBucket: "lucky-six-bxkzw.firebasestorage.app",
+  storageBucket: "lucky-six-bxkzw.appspot.com",
   apiKey: process.env.NEXT_PUBLIC_FIREBASE_API_KEY || "AIzaSyDbpkZD0d47C6Fut4UKP2aHuFGA5cxN5Vo",
   authDomain: "lucky-six-bxkzw.firebaseapp.com",
   measurementId: "",
