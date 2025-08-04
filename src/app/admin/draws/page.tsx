@@ -267,7 +267,7 @@ function DrawsAdminPage() {
                           <div className="flex justify-end items-center gap-2">
                              {canAnnounce && (
                                 <Button asChild size="sm" className="bg-accent text-accent-foreground hover:bg-accent/90">
-                                  <Link href={`/admin/draws/${draw.id}/announce`}>
+                                  <Link href={`/announcements/${draw.id}`}>
                                       <Megaphone className="mr-2 h-4 w-4" />
                                       {status.text === 'Completed' ? 'View Results' : 'View Ceremony'}
                                   </Link>

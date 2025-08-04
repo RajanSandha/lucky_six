@@ -3,17 +3,10 @@
 
 import { revalidatePath } from 'next/cache';
 import { db, storage } from '@/lib/firebase';
-import { collection, addDoc, serverTimestamp, getDocs, doc, updateDoc, getDoc, deleteDoc, query, where, limit } from 'firebase/firestore';
+import { collection, addDoc, serverTimestamp, getDocs, doc, updateDoc, getDoc, deleteDoc, query, where, limit, Timestamp } from 'firebase/firestore';
 import { ref, uploadBytes, getDownloadURL, deleteObject } from 'firebase/storage';
 import type { Draw } from '@/lib/types';
 import { scheduleWinnerSelection } from '@/ai/flows/schedule-winner-selection';
-
-// Helper function to create a UTC date from a local datetime string
-const createUtcDate = (dateString: string) => {
-    if (!dateString) return new Date(); // Fallback, though should be handled by form validation
-    // Append 'Z' to the string to tell the Date constructor that this time is in UTC
-    return new Date(dateString + ':00.000Z');
-}
 
 async function uploadImage(image: File): Promise<string> {
     const storageRef = ref(storage, `draws/${Date.now()}-${image.name}`);
@@ -51,7 +44,7 @@ export async function createDraw(formData: FormData) {
       return { success: false, message: 'Please fill out all required fields.' };
     }
     
-    const endDateObj = createUtcDate(endDate);
+    const endDateObj = new Date(endDate);
     if (!announcementDate) {
         // Default announcement date to 2 hours after end date
         announcementDate = new Date(endDateObj.getTime() + 2 * 60 * 60 * 1000).toISOString().slice(0, 16);
@@ -69,9 +62,9 @@ export async function createDraw(formData: FormData) {
       description,
       prize: Number(prize),
       ticketPrice: Number(ticketPrice),
-      startDate: createUtcDate(startDate),
-      endDate: endDateObj,
-      announcementDate: createUtcDate(announcementDate),
+      startDate: Timestamp.fromDate(new Date(startDate)),
+      endDate: Timestamp.fromDate(endDateObj),
+      announcementDate: Timestamp.fromDate(new Date(announcementDate)),
       imageUrl: imageUrl,
       createdAt: serverTimestamp(),
       status: 'upcoming',
@@ -119,9 +112,9 @@ export async function updateDraw(drawId: string, formData: FormData) {
             description,
             prize: Number(prize),
             ticketPrice: Number(ticketPrice),
-            startDate: createUtcDate(startDate),
-            endDate: createUtcDate(endDate),
-            announcementDate: createUtcDate(announcementDate),
+            startDate: Timestamp.fromDate(new Date(startDate)),
+            endDate: Timestamp.fromDate(new Date(endDate)),
+            announcementDate: Timestamp.fromDate(new Date(announcementDate)),
             referralAvailable,
         };
 
