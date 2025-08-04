@@ -1,4 +1,5 @@
 
+
 import {
   Card,
   CardContent,
@@ -80,7 +81,7 @@ export default async function ResultsPage() {
                     <div>
                         <CardTitle className="font-headline text-2xl">{draw.name}</CardTitle>
                         <CardDescription>
-                            Draw ended on {new Date(draw.endDate).toLocaleDateString()}
+                            Draw ended on {new Date(draw.endDate).toLocaleString()}
                         </CardDescription>
                     </div>
                     <Badge variant="default" className="bg-primary text-primary-foreground">
@@ -126,3 +127,5 @@ export default async function ResultsPage() {
     </div>
   );
 }
+
+    

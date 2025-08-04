@@ -1,4 +1,5 @@
 
+
 "use client";
 
 import { useState, useMemo, useEffect } from 'react';
@@ -356,7 +357,7 @@ export default function DrawDetailPage() {
         )}
         <CardHeader>
           <CardTitle className="font-headline text-3xl">{draw.name}</CardTitle>
-          <CardDescription>Prize: ₹{draw.prize.toLocaleString('en-IN')} | Ends on: {new Date(draw.endDate).toLocaleDateString()}</CardDescription>
+          <CardDescription>Prize: ₹{draw.prize.toLocaleString('en-IN')} | Ends on: {new Date(draw.endDate).toLocaleString()}</CardDescription>
         </CardHeader>
         <CardContent>
           {!statusInfo.isActive && (
@@ -465,3 +466,5 @@ export default function DrawDetailPage() {
     </div>
   );
 }
+
+    

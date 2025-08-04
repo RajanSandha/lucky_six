@@ -68,8 +68,6 @@ const getDrawStatus = (draw: Draw): { text: string; variant: "default" | "second
   } else if (now > endDate && now < announcementDate) {
      return { text: "Awaiting Announcement", variant: "outline", className: "border-yellow-500/50 text-yellow-700" };
   } else if (now >= announcementDate) {
-    // This is the key change. If the current time is past the announcement date, but the status isn't 'finished',
-    // it must be 'announcing' because the scheduler should have picked it up.
     return { text: "Announcing", variant: "default", className: "bg-purple-500/20 text-purple-700 animate-pulse" };
   }
   else {
@@ -256,7 +254,7 @@ function DrawsAdminPage() {
                     <TableRow key={draw.id}>
                         <TableCell className="font-medium">{draw.name}</TableCell>
                         <TableCell>{draw.prize.toLocaleString('en-IN')}</TableCell>
-                        <TableCell>{new Date(draw.endDate).toLocaleDateString()}</TableCell>
+                        <TableCell>{new Date(draw.endDate).toLocaleString()}</TableCell>
                         <TableCell>{draw.announcementDate ? new Date(draw.announcementDate).toLocaleString() : 'Not Set'}</TableCell>
                         <TableCell>
                         <Badge variant={status.variant} className={status.className}>
@@ -333,3 +331,5 @@ function DrawsAdminPage() {
 }
 
 export default withAdminAuth(DrawsAdminPage);
+
+    
