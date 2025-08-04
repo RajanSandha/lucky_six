@@ -199,12 +199,12 @@ function DrawsAdminPage() {
 
   return (
     <div className="container mx-auto py-12 px-4">
-      <div className="flex justify-between items-center mb-8">
+      <div className="flex flex-col md:flex-row justify-between md:items-center gap-4 mb-8">
         <div>
             <h1 className="text-4xl font-bold font-headline text-primary">Draws Management</h1>
             <p className="text-lg text-muted-foreground mt-2">Create, view, and manage all lottery draws.</p>
         </div>
-        <div className="flex gap-2">
+        <div className="flex flex-col sm:flex-row gap-2">
             <Button variant="outline" onClick={handleRunScheduler} disabled={isSchedulerRunning}>
                 {isSchedulerRunning ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <PlayCircle className="mr-2 h-4 w-4" />}
                 Run Scheduler
