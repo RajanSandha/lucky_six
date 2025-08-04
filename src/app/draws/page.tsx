@@ -17,6 +17,8 @@ import { Countdown } from "@/components/Countdown";
 import type { Draw } from "@/lib/types";
 import { getCurrentDateInUTC } from "@/lib/date-utils";
 
+export const dynamic = 'force-dynamic';
+
 const getDrawStatusInfo = (draw: Draw): { isUpcoming: boolean; isActive: boolean; countdownTo: 'start' | 'end'; countdownDate: Date } => {
     const now = getCurrentDateInUTC();
     const startDate = new Date(draw.startDate);
