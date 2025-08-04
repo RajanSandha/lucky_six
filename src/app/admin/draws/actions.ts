@@ -9,6 +9,14 @@ import type { Draw } from '@/lib/types';
 import { scheduleWinnerSelection } from '@/ai/flows/schedule-winner-selection';
 import { localStringToUtc, getCurrentDateInUTC } from '@/lib/date-utils';
 
+const defaultDrawImages = [
+    'https://images.unsplash.com/photo-1593344484962-796b931a8a47?q=80&w=600&h=400&auto=format&fit=crop',
+    'https://images.unsplash.com/photo-1606857521015-7f9fcf423740?q=80&w=600&h=400&auto=format&fit=crop',
+    'https://images.unsplash.com/photo-1526304640581-d334cdbbf45e?q=80&w=600&h=400&auto=format&fit=crop',
+    'https://images.unsplash.com/photo-1579547945412-0a04fb33216b?q=80&w=600&h=400&auto=format&fit=crop',
+    'https://images.unsplash.com/photo-1567427018141-0584cfcbf1b8?q=80&w=600&h=400&auto=format&fit=crop'
+];
+
 async function uploadImage(image: File): Promise<string> {
     const storageRef = ref(storage, `draws/${Date.now()}-${image.name}`);
     await uploadBytes(storageRef, image);
@@ -45,10 +53,12 @@ export async function createDraw(formData: FormData) {
       return { success: false, message: 'Please fill out all required fields.' };
     }
     
-    let imageUrl = 'https://placehold.co/600x400.png';
+    let imageUrl = '';
 
     if (imageFile && imageFile.size > 0) {
         imageUrl = await uploadImage(imageFile);
+    } else {
+        imageUrl = defaultDrawImages[Math.floor(Math.random() * defaultDrawImages.length)];
     }
     
     const newDrawData = {
