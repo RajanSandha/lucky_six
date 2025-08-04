@@ -21,41 +21,25 @@ import { Loader2 } from "lucide-react";
 import type { Draw } from "@/lib/types";
 import { createDraw, updateDraw } from "@/app/admin/draws/actions";
 import { Switch } from "./ui/switch";
-
-interface DrawFormProps {
-  open: boolean;
-  onOpenChange: (open: boolean) => void;
-  onSuccess: () => void;
-  draw?: Draw | null;
-}
-
-const formatToDateTimeLocalString = (date: Date): string => {
-    if (!date || isNaN(date.getTime())) return '';
-    const year = date.getFullYear();
-    const month = String(date.getMonth() + 1).padStart(2, '0');
-    const day = String(date.getDate()).padStart(2, '0');
-    const hours = String(date.getHours()).padStart(2, '0');
-    const minutes = String(date.getMinutes()).padStart(2, '0');
-    return `${year}-${month}-${day}T${hours}:${minutes}`;
-};
-
+import { utcToDateTimeLocalString } from "@/lib/date-utils";
 
 export function DrawForm({ open, onOpenChange, onSuccess, draw }: DrawFormProps) {
   const [isLoading, setIsLoading] = useState(false);
   const { toast } = useToast();
   const isEditing = !!draw;
   
-  const [startDate, setStartDate] = useState(draw ? formatToDateTimeLocalString(new Date(draw.startDate)) : '');
-  const [endDate, setEndDate] = useState(draw ? formatToDateTimeLocalString(new Date(draw.endDate)) : '');
-  const [announcementDate, setAnnouncementDate] = useState(draw && draw.announcementDate ? formatToDateTimeLocalString(new Date(draw.announcementDate)) : '');
+  const [startDate, setStartDate] = useState(draw ? utcToDateTimeLocalString(new Date(draw.startDate)) : '');
+  const [endDate, setEndDate] = useState(draw ? utcToDateTimeLocalString(new Date(draw.endDate)) : '');
+  const [announcementDate, setAnnouncementDate] = useState(draw && draw.announcementDate ? utcToDateTimeLocalString(new Date(draw.announcementDate)) : '');
 
   const handleEndDateChange = (e: React.ChangeEvent<HTMLInputElement>) => {
       const newEndDateStr = e.target.value;
       setEndDate(newEndDateStr);
       if(newEndDateStr) {
           const newEndDate = new Date(newEndDateStr);
-          const newAnnouncementDate = new Date(newEndDate.getTime() + 2 * 60 * 60 * 1000);
-          setAnnouncementDate(formatToDateTimeLocalString(newAnnouncementDate));
+          // Default announcement to 2 hours after end date
+          newEndDate.setHours(newEndDate.getHours() + 2);
+          setAnnouncementDate(utcToDateTimeLocalString(newEndDate));
       }
   }
 
@@ -127,16 +111,16 @@ export function DrawForm({ open, onOpenChange, onSuccess, draw }: DrawFormProps)
             </div>
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">
-                <Label htmlFor="startDate">Start Date</Label>
+                <Label htmlFor="startDate">Start Date (IST)</Label>
                 <Input id="startDate" name="startDate" type="datetime-local" value={startDate} onChange={e => setStartDate(e.target.value)} required />
               </div>
               <div className="space-y-2">
-                <Label htmlFor="endDate">End Date</Label>
+                <Label htmlFor="endDate">End Date (IST)</Label>
                 <Input id="endDate" name="endDate" type="datetime-local" value={endDate} onChange={handleEndDateChange} required />
               </div>
             </div>
              <div className="space-y-2">
-                <Label htmlFor="announcementDate">Announcement Date</Label>
+                <Label htmlFor="announcementDate">Announcement Date (IST)</Label>
                 <Input id="announcementDate" name="announcementDate" type="datetime-local" value={announcementDate} onChange={e => setAnnouncementDate(e.target.value)} required />
                 <p className="text-xs text-muted-foreground">Defaults to 2 hours after the end date.</p>
               </div>

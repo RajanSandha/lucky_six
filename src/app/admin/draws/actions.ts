@@ -7,6 +7,7 @@ import { collection, addDoc, serverTimestamp, getDocs, doc, updateDoc, getDoc, d
 import { ref, uploadBytes, getDownloadURL, deleteObject } from 'firebase/storage';
 import type { Draw } from '@/lib/types';
 import { scheduleWinnerSelection } from '@/ai/flows/schedule-winner-selection';
+import { localStringToUtc, getCurrentDateInUTC } from '@/lib/date-utils';
 
 async function uploadImage(image: File): Promise<string> {
     const storageRef = ref(storage, `draws/${Date.now()}-${image.name}`);
@@ -44,13 +45,6 @@ export async function createDraw(formData: FormData) {
       return { success: false, message: 'Please fill out all required fields.' };
     }
     
-    const endDateObj = new Date(endDate);
-    if (!announcementDate) {
-        // Default announcement date to 2 hours after end date
-        announcementDate = new Date(endDateObj.getTime() + 2 * 60 * 60 * 1000).toISOString();
-    }
-
-
     let imageUrl = 'https://placehold.co/600x400.png';
 
     if (imageFile && imageFile.size > 0) {
@@ -62,9 +56,9 @@ export async function createDraw(formData: FormData) {
       description,
       prize: Number(prize),
       ticketPrice: Number(ticketPrice),
-      startDate: Timestamp.fromDate(new Date(startDate)),
-      endDate: Timestamp.fromDate(endDateObj),
-      announcementDate: Timestamp.fromDate(new Date(announcementDate)),
+      startDate: Timestamp.fromDate(localStringToUtc(startDate)),
+      endDate: Timestamp.fromDate(localStringToUtc(endDate)),
+      announcementDate: Timestamp.fromDate(localStringToUtc(announcementDate)),
       imageUrl: imageUrl,
       createdAt: serverTimestamp(),
       status: 'upcoming',
@@ -112,9 +106,9 @@ export async function updateDraw(drawId: string, formData: FormData) {
             description,
             prize: Number(prize),
             ticketPrice: Number(ticketPrice),
-            startDate: Timestamp.fromDate(new Date(startDate)),
-            endDate: Timestamp.fromDate(new Date(endDate)),
-            announcementDate: Timestamp.fromDate(new Date(announcementDate)),
+            startDate: Timestamp.fromDate(localStringToUtc(startDate)),
+            endDate: Timestamp.fromDate(localStringToUtc(endDate)),
+            announcementDate: Timestamp.fromDate(localStringToUtc(announcementDate)),
             referralAvailable,
         };
 
@@ -192,13 +186,12 @@ export async function getDraws(): Promise<Draw[]> {
     const drawSnapshot = await getDocs(drawsCol);
     const drawList = drawSnapshot.docs.map(doc => {
         const data = doc.data();
-        const endDate = data.endDate.toDate();
         return {
             id: doc.id,
             ...data,
             startDate: data.startDate.toDate(),
-            endDate: endDate,
-            announcementDate: data.announcementDate ? data.announcementDate.toDate() : new Date(endDate.getTime() + 2 * 60 * 60 * 1000), // Default to 2 hr after end if not set
+            endDate: data.endDate.toDate(),
+            announcementDate: data.announcementDate.toDate(),
             createdAt: data.createdAt?.toDate()
         } as Draw;
     });
@@ -211,13 +204,12 @@ export async function getDraw(id: string): Promise<Draw | null> {
     const drawSnap = await getDoc(drawRef);
     if (drawSnap.exists()) {
         const data = drawSnap.data();
-        const endDate = data.endDate.toDate();
         return {
             id: drawSnap.id,
             ...data,
             startDate: data.startDate.toDate(),
-            endDate: endDate,
-            announcementDate: data.announcementDate ? data.announcementDate.toDate() : new Date(endDate.getTime() + 2 * 60 * 60 * 1000), // Default to 2 hr after end if not set
+            endDate: data.endDate.toDate(),
+            announcementDate: data.announcementDate.toDate(),
             createdAt: data.createdAt?.toDate()
         } as Draw;
     }
@@ -226,7 +218,7 @@ export async function getDraw(id: string): Promise<Draw | null> {
 
 export async function runScheduler() {
     try {
-        const result = await scheduleWinnerSelection({ currentTime: new Date().toISOString() });
+        const result = await scheduleWinnerSelection({ currentTime: getCurrentDateInUTC().toISOString() });
         revalidatePath('/admin/draws');
         revalidatePath('/admin/announcements');
         return { success: true, message: `Scheduler ran successfully. Processed ${result.processedDraws.length} draws.` };

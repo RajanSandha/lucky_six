@@ -21,6 +21,7 @@ import { Countdown } from '@/components/Countdown';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogClose } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { utcToLocalString, getCurrentDateInUTC } from '@/lib/date-utils';
 
 // Helper to generate a 6-digit string
 const generate6DigitString = () => Array.from({ length: 6 }, () => Math.floor(Math.random() * 10)).join('');
@@ -104,13 +105,12 @@ export default function DrawDetailPage() {
 
     if (drawSnap.exists()) {
         const drawData = drawSnap.data();
-        const endDate = drawData.endDate.toDate();
         const fetchedDraw = {
             id: drawSnap.id,
             ...drawData,
             startDate: drawData.startDate.toDate(),
-            endDate: endDate,
-            announcementDate: drawData.announcementDate ? drawData.announcementDate.toDate() : new Date(endDate.getTime() + 2 * 60 * 60 * 1000),
+            endDate: drawData.endDate.toDate(),
+            announcementDate: drawData.announcementDate.toDate(),
         } as Draw;
         setDraw(fetchedDraw);
 
@@ -237,7 +237,7 @@ export default function DrawDetailPage() {
   const getDrawStatusInfo = (draw: Draw | null): { isActive: boolean; isUpcoming: boolean; message: string; countdownDate: Date | null } => {
     if (!draw) return { isActive: false, isUpcoming: false, message: 'Loading draw...', countdownDate: null };
     
-    const now = new Date();
+    const now = getCurrentDateInUTC();
     const startDate = new Date(draw.startDate);
     const endDate = new Date(draw.endDate);
     
@@ -327,7 +327,7 @@ export default function DrawDetailPage() {
             <p className="text-muted-foreground mt-2 mb-4">You're officially in the draw.</p>
             <p className="font-semibold">Your ticket number is:</p>
             <TicketDisplay numbers={lastPurchasedTicket} />
-            <p className="mt-4 text-sm text-muted-foreground">We wish you the best of luck. Winners will be announced on {new Date(draw.announcementDate).toLocaleDateString()}.</p>
+            <p className="mt-4 text-sm text-muted-foreground">We wish you the best of luck. Winners will be announced on {utcToLocalString(new Date(draw.announcementDate), 'PPP')}.</p>
           </CardContent>
           <CardContent className="flex flex-col sm:flex-row items-center justify-center gap-4">
             <Button onClick={resetForNewPurchase} variant="outline">
@@ -357,7 +357,7 @@ export default function DrawDetailPage() {
         )}
         <CardHeader>
           <CardTitle className="font-headline text-3xl">{draw.name}</CardTitle>
-          <CardDescription>Prize: ₹{draw.prize.toLocaleString('en-IN')} | Ends on: {new Date(draw.endDate).toLocaleString()}</CardDescription>
+          <CardDescription>Prize: ₹{draw.prize.toLocaleString('en-IN')} | Ends on: {utcToLocalString(new Date(draw.endDate), 'PPp')}</CardDescription>
         </CardHeader>
         <CardContent>
           {!statusInfo.isActive && (
@@ -466,5 +466,3 @@ export default function DrawDetailPage() {
     </div>
   );
 }
-
-    

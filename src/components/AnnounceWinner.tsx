@@ -16,6 +16,7 @@ import { useAuth } from '@/context/AuthContext';
 import { cn } from '@/lib/utils';
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from './ui/accordion';
 import { Avatar, AvatarFallback } from './ui/avatar';
+import { utcToLocalString } from '@/lib/date-utils';
 
 
 const STAGE_CONFIG = {
@@ -70,7 +71,7 @@ function AwaitingCeremonyDisplay({ draw }: { draw: Draw }) {
             {floatingTickets}
             <div className="text-center mb-8 z-10">
                 <h1 className="text-3xl font-bold font-headline text-primary">The Ceremony Is About to Begin!</h1>
-                <p className="text-muted-foreground mt-2">Winner selection starts on {new Date(draw.announcementDate).toLocaleString()}</p>
+                <p className="text-muted-foreground mt-2">Winner selection starts on {utcToLocalString(new Date(draw.announcementDate), 'PPpp')}</p>
                  {user && <p className="text-lg font-semibold mt-4">Hang tight, {user.name}! The excitement is building.</p>}
             </div>
              <div className="flex justify-center z-10 w-full">
@@ -122,7 +123,7 @@ function FinishedDrawDisplay({ draw, allTickets }: { draw: Draw; allTickets: Ful
     <div className="container mx-auto py-12 px-4">
       <div className="text-center mb-8">
         <h1 className="text-3xl font-bold font-headline text-primary">{draw.name} - Results</h1>
-        <p className="text-muted-foreground mt-2">The ceremony concluded on {new Date(draw.announcementDate).toLocaleString()}</p>
+        <p className="text-muted-foreground mt-2">The ceremony concluded on {utcToLocalString(new Date(draw.announcementDate), 'PPpp')}</p>
       </div>
 
       <Card className="max-w-4xl mx-auto shadow-2xl overflow-hidden border-accent">

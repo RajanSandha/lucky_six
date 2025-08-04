@@ -15,9 +15,10 @@ import { Badge } from "@/components/ui/badge";
 import { getDraws } from "../admin/draws/actions";
 import { Countdown } from "@/components/Countdown";
 import type { Draw } from "@/lib/types";
+import { getCurrentDateInUTC } from "@/lib/date-utils";
 
 const getDrawStatusInfo = (draw: Draw): { isUpcoming: boolean; isActive: boolean; countdownTo: 'start' | 'end'; countdownDate: Date } => {
-    const now = new Date();
+    const now = getCurrentDateInUTC();
     const startDate = new Date(draw.startDate);
     const endDate = new Date(draw.endDate);
     
@@ -31,7 +32,7 @@ const getDrawStatusInfo = (draw: Draw): { isUpcoming: boolean; isActive: boolean
 
 export default async function DrawsPage() {
   const allDraws = await getDraws();
-  const now = new Date();
+  const now = getCurrentDateInUTC();
   
   // A draw is visible if its end date is in the future
   const visibleDraws = allDraws.filter(d => new Date(d.endDate) > now);

@@ -16,9 +16,10 @@ import { RecentWinners } from "@/components/RecentWinners";
 import { getDraws } from "./admin/draws/actions";
 import type { Draw } from "@/lib/types";
 import { Badge } from "@/components/ui/badge";
+import { getCurrentDateInUTC } from "@/lib/date-utils";
 
 const getHomepageDraw = (allDraws: Draw[]): Draw | null => {
-    const now = new Date();
+    const now = getCurrentDateInUTC();
     // Prioritize active draws
     const activeDraws = allDraws
         .filter(d => new Date(d.startDate) <= now && new Date(d.endDate) > now)
@@ -37,11 +38,12 @@ const getHomepageDraw = (allDraws: Draw[]): Draw | null => {
 }
 
 const getDrawStatusInfo = (draw: Draw): { text: string; countdownDate: Date | null, isActionable: boolean, countdownTo: 'start' | 'end' | null } => {
-    const now = new Date();
+    const now = getCurrentDateInUTC();
     const startDate = new Date(draw.startDate);
     const endDate = new Date(draw.endDate);
+    const announcementDate = new Date(draw.announcementDate);
 
-    if (draw.status === 'finished' || now > new Date(draw.announcementDate)) {
+    if (draw.status === 'finished' || now > announcementDate) {
         return { text: "Completed", countdownDate: null, isActionable: false, countdownTo: null };
     }
     if (draw.status === 'announcing') {
@@ -53,7 +55,7 @@ const getDrawStatusInfo = (draw: Draw): { text: string; countdownDate: Date | nu
     if (now >= startDate && now <= endDate) {
         return { text: "Active", countdownDate: endDate, isActionable: true, countdownTo: 'end' };
     }
-    return { text: "Awaiting Announcement", countdownDate: new Date(draw.announcementDate), isActionable: false, countdownTo: null };
+    return { text: "Awaiting Announcement", countdownDate: announcementDate, isActionable: false, countdownTo: null };
 };
 
 

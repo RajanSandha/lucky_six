@@ -49,10 +49,11 @@ import withAdminAuth from '@/components/withAdminAuth';
 import { DrawForm } from "@/components/DrawForm";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { utcToLocalString, getCurrentDateInUTC } from "@/lib/date-utils";
 
 
 const getDrawStatus = (draw: Draw): { text: string; variant: "default" | "secondary" | "outline"; className?: string } => {
-  const now = new Date();
+  const now = getCurrentDateInUTC();
   const startDate = new Date(draw.startDate);
   const endDate = new Date(draw.endDate);
   const announcementDate = new Date(draw.announcementDate);
@@ -236,8 +237,8 @@ function DrawsAdminPage() {
                 <TableRow>
                     <TableHead>Name</TableHead>
                     <TableHead>Prize (₹)</TableHead>
-                    <TableHead>End Date</TableHead>
-                    <TableHead>Announcement Date</TableHead>
+                    <TableHead>End Date (IST)</TableHead>
+                    <TableHead>Announcement Date (IST)</TableHead>
                     <TableHead>Status</TableHead>
                     <TableHead className="text-right">Actions</TableHead>
                 </TableRow>
@@ -254,8 +255,8 @@ function DrawsAdminPage() {
                     <TableRow key={draw.id}>
                         <TableCell className="font-medium">{draw.name}</TableCell>
                         <TableCell>{draw.prize.toLocaleString('en-IN')}</TableCell>
-                        <TableCell>{new Date(draw.endDate).toLocaleString()}</TableCell>
-                        <TableCell>{draw.announcementDate ? new Date(draw.announcementDate).toLocaleString() : 'Not Set'}</TableCell>
+                        <TableCell>{utcToLocalString(new Date(draw.endDate), 'dd MMM yyyy p')}</TableCell>
+                        <TableCell>{utcToLocalString(new Date(draw.announcementDate), 'dd MMM yyyy p')}</TableCell>
                         <TableCell>
                         <Badge variant={status.variant} className={status.className}>
                             {status.text}
@@ -331,5 +332,3 @@ function DrawsAdminPage() {
 }
 
 export default withAdminAuth(DrawsAdminPage);
-
-    
