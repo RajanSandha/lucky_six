@@ -9,7 +9,7 @@ import type { Draw } from '@/lib/types';
 import { scheduleWinnerSelection } from '@/ai/flows/schedule-winner-selection';
 import { localStringToUtc, getCurrentDateInUTC } from '@/lib/date-utils';
 
-const defaultDrawImage = 'https://storage.googleapis.com/stablediffusion-12913.appspot.com/600x400_3.jpeg';
+const defaultDrawImage = 'https://firebasestorage.googleapis.com/v0/b/lucky-six-bxkzw.firebasestorage.app/o/istockphoto-1438698279-612x612.jpg?alt=media&token=3ee52ea3-be89-4642-a614-f02b12605ea6';
 
 
 async function uploadImage(image: File): Promise<string> {
