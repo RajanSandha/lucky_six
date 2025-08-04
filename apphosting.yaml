@@ -22,7 +22,7 @@ env:
       - BUILD
       - RUNTIME
   - variable: CRON_SECRET
-    value: "YOUR_SECRET_KEY_HERE" # Replace with a strong, random secret key
+    value: "b7f3c8e2a1d4f6b9e0c5a7d8e3f2b1c6" # Randomly generated secret key
     availability:
       - BUILD
       - RUNTIME
