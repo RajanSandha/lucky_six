@@ -68,6 +68,8 @@ const getDrawStatus = (draw: Draw): { text: string; variant: "default" | "second
   } else if (now > endDate && now < announcementDate) {
      return { text: "Awaiting Announcement", variant: "outline", className: "border-yellow-500/50 text-yellow-700" };
   } else if (now >= announcementDate) {
+    // This is the key change. If the current time is past the announcement date, but the status isn't 'finished',
+    // it must be 'announcing' because the scheduler should have picked it up.
     return { text: "Announcing", variant: "default", className: "bg-purple-500/20 text-purple-700 animate-pulse" };
   }
   else {
@@ -265,7 +267,7 @@ function DrawsAdminPage() {
                           <div className="flex justify-end items-center gap-2">
                              {canAnnounce && (
                                 <Button asChild size="sm" className="bg-accent text-accent-foreground hover:bg-accent/90">
-                                  <Link href={`/announcements/${draw.id}`}>
+                                  <Link href={`/admin/draws/${draw.id}/announce`}>
                                       <Megaphone className="mr-2 h-4 w-4" />
                                       {status.text === 'Completed' ? 'View Results' : 'View Ceremony'}
                                   </Link>
