@@ -1,4 +1,5 @@
-import { formatInTimeZone, zonedTimeToUtc, utcToZonedTime } from 'date-fns-tz';
+
+import { formatInTimeZone, fromZonedTime, toZonedTime } from 'date-fns-tz';
 import { format as formatDateFns } from 'date-fns';
 
 const TIME_ZONE = 'Asia/Kolkata';
@@ -10,7 +11,7 @@ const TIME_ZONE = 'Asia/Kolkata';
  * @returns A JavaScript Date object representing the specified time in UTC.
  */
 export function localStringToUtc(dateString: string): Date {
-  return zonedTimeToUtc(dateString, TIME_ZONE);
+  return fromZonedTime(dateString, TIME_ZONE);
 }
 
 /**
@@ -37,13 +38,14 @@ export function utcToDateTimeLocalString(date?: Date): string {
     if (!date || !(date instanceof Date) || isNaN(date.getTime())) {
         return '';
     }
-    const zonedDate = utcToZonedTime(date, TIME_ZONE);
+    const zonedDate = toZonedTime(date, TIME_ZONE);
     return formatDateFns(zonedDate, "yyyy-MM-dd'T'HH:mm");
 }
 
 
 /**
- * Returns the current date and time in the standard IST timezone.
+ * Returns the current date and time as a JavaScript Date object.
+ * This object represents the number of milliseconds since the Unix epoch (UTC).
  * @returns A JavaScript Date object for the current time.
  */
 export function getCurrentDateInUTC(): Date {
