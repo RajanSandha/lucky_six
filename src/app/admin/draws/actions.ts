@@ -47,7 +47,7 @@ export async function createDraw(formData: FormData) {
     const endDateObj = new Date(endDate);
     if (!announcementDate) {
         // Default announcement date to 2 hours after end date
-        announcementDate = new Date(endDateObj.getTime() + 2 * 60 * 60 * 1000).toISOString().slice(0, 16);
+        announcementDate = new Date(endDateObj.getTime() + 2 * 60 * 60 * 1000).toISOString();
     }
 
 

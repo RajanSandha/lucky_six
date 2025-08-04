@@ -21,7 +21,7 @@ const getDrawStatusInfo = (draw: Draw): { isUpcoming: boolean; isActive: boolean
     const startDate = new Date(draw.startDate);
     const endDate = new Date(draw.endDate);
     
-    if (now < startDate) {
+    if (now.getTime() < startDate.getTime()) {
         return { isUpcoming: true, isActive: false, countdownTo: 'start', countdownDate: startDate };
     }
     
@@ -50,7 +50,7 @@ export default async function DrawsPage() {
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
           {visibleDraws.map((draw) => {
             const statusInfo = getDrawStatusInfo(draw);
-            const timeRemaining = statusInfo.countdownDate.getTime() - now.getTime();
+            const timeRemaining = new Date(statusInfo.countdownDate).getTime() - now.getTime();
             
             const days = Math.floor(timeRemaining / (1000 * 60 * 60 * 24));
             const hours = Math.floor((timeRemaining % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));

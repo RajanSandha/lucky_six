@@ -29,19 +29,14 @@ interface DrawFormProps {
   draw?: Draw | null;
 }
 
-// Helper to format a Date object from Firestore into a 'yyyy-MM-ddTHH:mm' string
-// This string format is required by the <input type="datetime-local"> element.
-const formatDateTimeLocal = (date: Date): string => {
-  if (!date || isNaN(date.getTime())) return '';
-  
-  // Create a new date object to avoid modifying the original
-  const localDate = new Date(date);
-  
-  // Adjust for the timezone offset to get the correct local time representation
-  localDate.setMinutes(localDate.getMinutes() - localDate.getTimezoneOffset());
-  
-  // Return the date in "YYYY-MM-DDTHH:mm" format
-  return localDate.toISOString().slice(0, 16);
+const formatToDateTimeLocalString = (date: Date): string => {
+    if (!date || isNaN(date.getTime())) return '';
+    const year = date.getFullYear();
+    const month = String(date.getMonth() + 1).padStart(2, '0');
+    const day = String(date.getDate()).padStart(2, '0');
+    const hours = String(date.getHours()).padStart(2, '0');
+    const minutes = String(date.getMinutes()).padStart(2, '0');
+    return `${year}-${month}-${day}T${hours}:${minutes}`;
 };
 
 
@@ -50,19 +45,17 @@ export function DrawForm({ open, onOpenChange, onSuccess, draw }: DrawFormProps)
   const { toast } = useToast();
   const isEditing = !!draw;
   
-  // Use state to manage input values, initialized correctly from the draw prop
-  const [startDate, setStartDate] = useState(draw ? formatDateTimeLocal(new Date(draw.startDate)) : '');
-  const [endDate, setEndDate] = useState(draw ? formatDateTimeLocal(new Date(draw.endDate)) : '');
-  const [announcementDate, setAnnouncementDate] = useState(draw && draw.announcementDate ? formatDateTimeLocal(new Date(draw.announcementDate)) : '');
+  const [startDate, setStartDate] = useState(draw ? formatToDateTimeLocalString(new Date(draw.startDate)) : '');
+  const [endDate, setEndDate] = useState(draw ? formatToDateTimeLocalString(new Date(draw.endDate)) : '');
+  const [announcementDate, setAnnouncementDate] = useState(draw && draw.announcementDate ? formatToDateTimeLocalString(new Date(draw.announcementDate)) : '');
 
   const handleEndDateChange = (e: React.ChangeEvent<HTMLInputElement>) => {
       const newEndDateStr = e.target.value;
       setEndDate(newEndDateStr);
       if(newEndDateStr) {
-          // When end date changes, automatically set announcement to 2 hours later
           const newEndDate = new Date(newEndDateStr);
           const newAnnouncementDate = new Date(newEndDate.getTime() + 2 * 60 * 60 * 1000);
-          setAnnouncementDate(formatDateTimeLocal(newAnnouncementDate));
+          setAnnouncementDate(formatToDateTimeLocalString(newAnnouncementDate));
       }
   }
 
@@ -168,5 +161,3 @@ export function DrawForm({ open, onOpenChange, onSuccess, draw }: DrawFormProps)
     </Dialog>
   );
 }
-
-    
