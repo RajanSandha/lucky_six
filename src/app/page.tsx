@@ -18,6 +18,8 @@ import type { Draw } from "@/lib/types";
 import { Badge } from "@/components/ui/badge";
 import { getCurrentDateInUTC } from "@/lib/date-utils";
 
+export const dynamic = 'force-dynamic';
+
 const getHomepageDraw = (allDraws: Draw[]): Draw | null => {
     const now = getCurrentDateInUTC();
     // Prioritize active draws

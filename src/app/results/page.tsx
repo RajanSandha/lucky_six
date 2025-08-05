@@ -17,6 +17,7 @@ import { User as UserType, Ticket as TicketType } from "@/lib/types";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { useAuth } from "@/context/AuthContext";
 
+export const dynamic = 'force-dynamic';
 
 async function getUserById(id: string): Promise<UserType | null> {
     if (!id) return null;
