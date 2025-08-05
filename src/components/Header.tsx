@@ -3,7 +3,7 @@
 "use client";
 
 import Link from "next/link";
-import { Ticket, Menu, X, LogOut, Megaphone, Gift, Shield, Award } from "lucide-react";
+import { Ticket, Menu, X, LogOut, Megaphone, Gift, Shield, Award, SlidersHorizontal } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
   Sheet,
@@ -23,10 +23,10 @@ export default function Header() {
   const { user, logout, isAdmin } = useAuth();
   
   const navItems = [
-    { href: "/draws", label: "Draws", public: true },
-    { href: "/announcements", label: "Draw Results", public: true },
-    { href: "/my-winnings", label: "My Winnings", public: true, requiresAuth: true },
-    { href: "/admin/draws", label: "Draws Management", admin: true },
+    { href: "/draws", label: "Draws", public: true, icon: Ticket },
+    { href: "/announcements", label: "Draw Results", public: true, icon: Megaphone },
+    { href: "/my-winnings", label: "My Winnings", public: true, requiresAuth: true, icon: Award },
+    { href: "/admin/draws", label: "Draws Management", admin: true, icon: SlidersHorizontal },
   ];
 
   const visibleNavItems = navItems.filter(item => {
@@ -55,7 +55,7 @@ export default function Header() {
                 pathname.startsWith(item.href) ? "text-primary" : "text-muted-foreground"
               )}
             >
-              {item.href === '/my-winnings' && <Award className="h-4 w-4" />}
+              <item.icon className="h-4 w-4" />
               {item.label}
             </Link>
           ))}
@@ -114,7 +114,7 @@ export default function Header() {
                         pathname.startsWith(item.href) ? "text-primary" : "text-muted-foreground"
                       )}
                     >
-                      {item.href === '/my-winnings' && <Award className="h-5 w-5" />}
+                      <item.icon className="h-5 w-5" />
                       {item.label}
                     </Link>
                   ))}
