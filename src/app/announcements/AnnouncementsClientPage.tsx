@@ -26,7 +26,7 @@ export default function AnnouncementsClientPage({ draws }: { draws: Draw[] }) {
     new Date(d.announcementDate) > now &&
     !announcingDraws.some(ad => ad.id === d.id) // Exclude draws that are already announcing
   ).slice(0, 5);
-  const pastDraws = draws.filter(d => d.status === 'finished').slice(0, 5);
+  const pastDraws = draws.filter(d => d.status === 'finished').slice(0, 10);
 
 
   return (
@@ -136,11 +136,6 @@ export default function AnnouncementsClientPage({ draws }: { draws: Draw[] }) {
                 <CheckCircle className="mr-3 h-6 w-6 text-green-600" />
                 Past Results
             </h2>
-            <Button asChild variant="link">
-                <Link href="/results/past">
-                    View All Past Results <ArrowRight className="ml-2 h-4 w-4" />
-                </Link>
-            </Button>
          </div>
          {pastDraws.length > 0 ? (
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
