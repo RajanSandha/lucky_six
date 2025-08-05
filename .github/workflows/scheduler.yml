@@ -1,0 +1,16 @@
+
+name: Trigger Scheduler Cron Job
+
+on:
+  schedule:
+    # Runs every 5 minutes
+    - cron: '*/5 * * * *'
+  workflow_dispatch: # Allows manual triggering from the Actions tab
+
+jobs:
+  trigger-cron:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Trigger the winner selection scheduler
+        run: |
+          curl --request GET --url 'https://lucky-six-app--lucky-six-bxkzw.asia-east1.hosted.app/api/cron?authKey=b7f3c8e2a1d4f6b9e0c5a7d8e3f2b1c6'
