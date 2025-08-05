@@ -12,21 +12,21 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Trophy, Search, Calendar, CheckCircle, Radio } from "lucide-react";
+import { Trophy, Search, Calendar, CheckCircle, Radio, ArrowRight } from "lucide-react";
 import type { Draw } from "@/lib/types";
 import { Separator } from "@/components/ui/separator";
 
 export default function AnnouncementsClientPage({ draws }: { draws: Draw[] }) {
   const now = new Date();
   
-  const announcingDraws = draws.filter(d => d.status === 'announcing' || (new Date(d.announcementDate) <= now && d.status !== 'finished'));
+  const announcingDraws = draws.filter(d => d.status === 'announcing' || (new Date(d.announcementDate) <= now && d.status !== 'finished')).slice(0, 5);
   const upcomingDraws = draws.filter(d => 
     d.status !== 'finished' && 
     new Date(d.endDate) < now && 
     new Date(d.announcementDate) > now &&
     !announcingDraws.some(ad => ad.id === d.id) // Exclude draws that are already announcing
-  );
-  const pastDraws = draws.filter(d => d.status === 'finished');
+  ).slice(0, 5);
+  const pastDraws = draws.filter(d => d.status === 'finished').slice(0, 5);
 
 
   return (
@@ -131,10 +131,17 @@ export default function AnnouncementsClientPage({ draws }: { draws: Draw[] }) {
       <Separator className="my-12" />
 
       <div>
-         <h2 className="text-2xl font-bold font-headline mb-4 flex items-center">
-            <CheckCircle className="mr-3 h-6 w-6 text-green-600" />
-            Past Results
-        </h2>
+         <div className="flex justify-between items-center mb-4">
+            <h2 className="text-2xl font-bold font-headline flex items-center">
+                <CheckCircle className="mr-3 h-6 w-6 text-green-600" />
+                Past Results
+            </h2>
+            <Button asChild variant="link">
+                <Link href="/results/past">
+                    View All Past Results <ArrowRight className="ml-2 h-4 w-4" />
+                </Link>
+            </Button>
+         </div>
          {pastDraws.length > 0 ? (
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
             {pastDraws.map((draw) => (

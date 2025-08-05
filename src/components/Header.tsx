@@ -3,7 +3,7 @@
 "use client";
 
 import Link from "next/link";
-import { Ticket, Menu, X, LogOut, Megaphone, Gift, Shield } from "lucide-react";
+import { Ticket, Menu, X, LogOut, Megaphone, Gift, Shield, Award } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
   Sheet,
@@ -25,11 +25,13 @@ export default function Header() {
   const navItems = [
     { href: "/draws", label: "Draws", public: true },
     { href: "/announcements", label: "Draw Results", public: true },
+    { href: "/my-winnings", label: "My Winnings", public: true, requiresAuth: true },
     { href: "/admin/draws", label: "Draws Management", admin: true },
   ];
 
   const visibleNavItems = navItems.filter(item => {
       if (item.admin) return isAdmin;
+      if (item.requiresAuth) return !!user;
       return item.public;
   });
 
@@ -49,10 +51,11 @@ export default function Header() {
               key={item.href}
               href={item.href}
               className={cn(
-                "transition-colors hover:text-primary",
-                pathname === item.href ? "text-primary" : "text-muted-foreground"
+                "transition-colors hover:text-primary flex items-center gap-2",
+                pathname.startsWith(item.href) ? "text-primary" : "text-muted-foreground"
               )}
             >
+              {item.href === '/my-winnings' && <Award className="h-4 w-4" />}
               {item.label}
             </Link>
           ))}
@@ -107,10 +110,11 @@ export default function Header() {
                       href={item.href}
                       onClick={() => setIsMenuOpen(false)}
                       className={cn(
-                        "text-lg font-medium transition-colors hover:text-primary",
-                        pathname === item.href ? "text-primary" : "text-muted-foreground"
+                        "text-lg font-medium transition-colors hover:text-primary flex items-center gap-3",
+                        pathname.startsWith(item.href) ? "text-primary" : "text-muted-foreground"
                       )}
                     >
+                      {item.href === '/my-winnings' && <Award className="h-5 w-5" />}
                       {item.label}
                     </Link>
                   ))}
