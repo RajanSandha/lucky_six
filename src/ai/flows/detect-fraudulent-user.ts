@@ -36,7 +36,7 @@ const prompt = ai.definePrompt({
   name: 'detectFraudulentUserPrompt',
   input: {schema: DetectFraudulentUserInputSchema},
   output: {schema: DetectFraudulentUserOutputSchema},
-  prompt: `You are an expert in detecting fraudulent user accounts in a lottery system.
+  prompt: `You are an expert in detecting fraudulent user accounts in a prize draw system.
 
 You will use the provided information to assess the likelihood of a user being fraudulent.
 

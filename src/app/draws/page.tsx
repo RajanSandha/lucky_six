@@ -74,7 +74,7 @@ export default async function DrawsPage() {
               <Card key={draw.id} className="flex flex-col shadow-lg hover:shadow-xl transition-shadow duration-300 overflow-hidden">
                 {draw.imageUrl && (
                   <div className="relative h-48 w-full">
-                    <Image src={draw.imageUrl} alt={draw.name} layout="fill" objectFit="cover" data-ai-hint="lottery ticket" />
+                    <Image src={draw.imageUrl} alt={draw.name} layout="fill" objectFit="cover" data-ai-hint="prize ticket" />
                      {draw.referralAvailable && (
                         <Badge className="absolute top-2 right-2 bg-primary text-primary-foreground">
                             <Gift className="mr-1 h-3 w-3" />

@@ -34,7 +34,7 @@ export default function TermsOfServicePage() {
           </section>
 
           <section>
-            <h2 className="font-headline text-2xl">3. How Draws Work</h2>
+            <h2 className="font-headline text-2xl">3. How Prize Draws Work</h2>
             <ul className="list-disc pl-6">
               <li>Users can acquire tickets for draws either by purchasing them or through promotional activities such as referrals.</li>
               <li>Each ticket has a unique number for a specific draw.</li>

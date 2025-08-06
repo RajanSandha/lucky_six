@@ -1,7 +1,7 @@
 'use server';
 
 /**
- * @fileOverview Summarizes user feedback related to the lottery.
+ * @fileOverview Summarizes user feedback related to the prize draw.
  *
  * - summarizeUserFeedback - A function that summarizes user feedback.
  * - SummarizeUserFeedbackInput - The input type for the summarizeUserFeedback function.
@@ -31,7 +31,7 @@ const prompt = ai.definePrompt({
   name: 'summarizeUserFeedbackPrompt',
   input: {schema: SummarizeUserFeedbackInputSchema},
   output: {schema: SummarizeUserFeedbackOutputSchema},
-  prompt: `Summarize the following user feedback about the lottery:
+  prompt: `Summarize the following user feedback about the prize draw:
 
 {{{feedback}}}`,
 });

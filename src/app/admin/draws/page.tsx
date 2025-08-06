@@ -205,7 +205,7 @@ function DrawsAdminPage() {
               <SlidersHorizontal className="h-9 w-9" />
               Draws Management
             </h1>
-            <p className="text-lg text-muted-foreground mt-2">Create, view, and manage all lottery draws.</p>
+            <p className="text-lg text-muted-foreground mt-2">Create, view, and manage all prize draws.</p>
         </div>
         <div className="flex flex-col sm:flex-row gap-2">
             <Button variant="outline" onClick={handleRunScheduler} disabled={isSchedulerRunning}>

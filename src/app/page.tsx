@@ -75,7 +75,7 @@ export default async function Home() {
           </h1>
           <p className="text-lg md:text-xl text-muted-foreground max-w-2xl mx-auto mb-8 font-body">
             Your chance to win amazing prizes is just a six-digit number away.
-            Participate in our draws, and you could be the next big winner!
+            Participate in our prize draws, and you could be the next big winner!
           </p>
           <Button asChild size="lg" className="bg-accent text-accent-foreground hover:bg-accent/90">
             <Link href="/draws" className="font-bold">
@@ -129,7 +129,7 @@ export default async function Home() {
             <Card className="w-full max-w-2xl shadow-lg overflow-hidden">
                {mainDraw.imageUrl && (
                 <div className="relative h-64 w-full">
-                    <Image src={mainDraw.imageUrl} alt={mainDraw.name} layout="fill" objectFit="cover" data-ai-hint="lottery prize" />
+                    <Image src={mainDraw.imageUrl} alt={mainDraw.name} layout="fill" objectFit="cover" data-ai-hint="prize giveaway" />
                     {mainDraw.referralAvailable && (
                         <Badge className="absolute top-2 right-2 bg-primary text-primary-foreground">
                             <Gift className="mr-1 h-3 w-3" />

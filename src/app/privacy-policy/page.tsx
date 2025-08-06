@@ -40,7 +40,7 @@ export default function PrivacyPolicyPage() {
             <ul className="list-disc pl-6">
               <li>To provide and maintain the Service</li>
               <li>To manage your account and registration</li>
-              <li>To facilitate participation in draws</li>
+              <li>To facilitate participation in prize draws</li>
               <li>To contact winners and arrange for prize delivery</li>
               <li>To provide customer support</li>
               <li>To monitor the usage of the Service and prevent fraudulent activity</li>
