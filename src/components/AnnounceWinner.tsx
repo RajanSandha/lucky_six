@@ -8,7 +8,7 @@ import type { Draw, Ticket, User } from '@/lib/types';
 import { TicketCard } from './TicketCard';
 import { useWindowSize } from 'react-use';
 import Confetti from 'react-confetti';
-import { Loader2, Crown, Ticket as TicketIcon, Phone, MessageSquare } from 'lucide-react';
+import { Loader2, Crown, Ticket as TicketIcon, Phone, MessageSquare, PartyPopper } from 'lucide-react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from './ui/card';
 import { db } from '@/lib/firebase';
 import { doc, onSnapshot, collection, query, where, getDocs, getDoc } from 'firebase/firestore';
@@ -38,6 +38,14 @@ const PRIZE_STATUS_OPTIONS = {
     shipped: 'Shipped',
     delivered: 'Delivered'
 };
+
+const WINNER_MESSAGES = [
+    "Congratulations! Your lucky number came through!",
+    "You're the grand prize winner! Unbelievable!",
+    "Wow! You did it! Your ticket is the chosen one!",
+    "Pop the confetti! You've won the main prize!",
+    "Your luck has paid off! Congratulations on your big win!"
+];
 
 
 type FullTicket = Ticket & { user: User | null };
@@ -124,13 +132,21 @@ function AwaitingCeremonyDisplay({ draw }: { draw: Draw }) {
 }
 
 function FinishedDrawDisplay({ draw, allTickets }: { draw: Draw; allTickets: FullTicket[] }) {
-  const { isAdmin } = useAuth();
+  const { user, isAdmin } = useAuth();
   const { toast } = useToast();
+  const [winnerMessage, setWinnerMessage] = useState('');
+  
   const finalWinnerId = draw.winningTicketId || draw.announcedWinners?.[4]?.[0] || '';
   const finalWinnerTicket = allTickets.find(t => t.id === finalWinnerId);
   const winner = finalWinnerTicket?.user;
   const winnerName = winner?.name || 'Anonymous';
   const winnerInitials = winnerName.split(' ').map(n => n[0]).join('');
+
+  useEffect(() => {
+    if (user && winner && user.id === winner.id) {
+        setWinnerMessage(WINNER_MESSAGES[Math.floor(Math.random() * WINNER_MESSAGES.length)]);
+    }
+  }, [user, winner]);
 
   const round3Winners = getTicketsByIds(draw.roundWinners?.[3] || [], allTickets);
   const round2Winners = getTicketsByIds(draw.roundWinners?.[2] || [], allTickets);
@@ -169,6 +185,12 @@ function FinishedDrawDisplay({ draw, allTickets }: { draw: Draw; allTickets: Ful
                             <AvatarFallback className="bg-primary/50 text-3xl font-bold">{winnerInitials}</AvatarFallback>
                         </Avatar>
                         <h3 className="text-3xl font-bold font-headline">{winnerName}</h3>
+                        {winnerMessage && (
+                            <div className="flex items-center gap-2 text-lg font-semibold bg-white/20 p-3 rounded-lg text-white">
+                                <PartyPopper className="h-6 w-6"/>
+                                <p>{winnerMessage}</p>
+                            </div>
+                        )}
                         <div className="bg-background/20 backdrop-blur-sm rounded-lg p-4 w-full max-w-sm">
                              <p className="text-sm opacity-80 mb-1">Winning Ticket</p>
                              <p className="text-4xl font-mono tracking-widest">{finalWinnerTicket?.numbers}</p>
