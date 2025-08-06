@@ -4,6 +4,7 @@ import { Toaster } from "@/components/ui/toaster";
 import Header from "@/components/Header";
 import Footer from "@/components/Footer";
 import { AuthProvider } from "@/context/AuthContext";
+import BottomNavBar from "@/components/BottomNavBar";
 import "./globals.css";
 
 export const metadata: Metadata = {
@@ -34,9 +35,10 @@ export default function RootLayout({
         <AuthProvider>
           <div className="relative flex min-h-screen flex-col">
             <Header />
-            <main className="flex-1">{children}</main>
+            <main className="flex-1 pb-20 md:pb-0">{children}</main>
             <Footer />
           </div>
+          <BottomNavBar />
           <Toaster />
         </AuthProvider>
       </body>

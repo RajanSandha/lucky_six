@@ -3,7 +3,7 @@
 "use client";
 
 import Link from "next/link";
-import { Ticket, Menu, X, LogOut, Megaphone, Gift, Shield, Award, SlidersHorizontal, UserCircle2 } from "lucide-react";
+import { Ticket, Menu, LogOut, Megaphone, Gift, Shield, Award, SlidersHorizontal, UserCircle2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
   Sheet,
@@ -83,69 +83,6 @@ export default function Header() {
                 </>
             )}
           </div>
-
-
-          <Sheet open={isMenuOpen} onOpenChange={setIsMenuOpen}>
-            <SheetTrigger asChild className="md:hidden">
-              <Button variant="ghost" size="icon">
-                <Menu className="h-5 w-5" />
-                <span className="sr-only">Toggle Menu</span>
-              </Button>
-            </SheetTrigger>
-            <SheetContent side="left" className="flex flex-col">
-               <SheetTitle className="sr-only">Main Menu</SheetTitle>
-              <div className="flex items-center border-b pb-4">
-                    <Link href="/" className="flex items-center space-x-2" onClick={() => setIsMenuOpen(false)}>
-                        <Ticket className="h-6 w-6 text-primary" />
-                        <span className="font-bold font-headline text-lg">Lucky Six</span>
-                    </Link>
-                </div>
-                <nav className="flex flex-col gap-4 mt-8 flex-1">
-                  {visibleNavItems.map((item) => (
-                    <Link
-                      key={item.href}
-                      href={item.href}
-                      onClick={() => setIsMenuOpen(false)}
-                      className={cn(
-                        "text-lg font-medium transition-colors hover:text-primary flex items-center gap-3",
-                        pathname.startsWith(item.href) ? "text-primary" : "text-muted-foreground"
-                      )}
-                    >
-                      <item.icon className="h-5 w-5" />
-                      {item.label}
-                    </Link>
-                  ))}
-                </nav>
-                <div className="mt-auto">
-                    {user ? (
-                        <>
-                            <Separator className="my-4"/>
-                            <div className="flex items-center justify-between">
-                                <div className="flex items-center gap-2">
-                                    <UserCircle2 className="h-8 w-8 text-muted-foreground"/>
-                                    <div>
-                                        <p className="font-semibold">{user.name}</p>
-                                        <p className="text-sm text-muted-foreground">{user.phone}</p>
-                                    </div>
-                                </div>
-                                <Button onClick={() => { logout(); setIsMenuOpen(false); }} variant="ghost" size="icon">
-                                    <LogOut className="h-5 w-5"/>
-                                </Button>
-                            </div>
-                        </>
-                    ) : (
-                        <div className="flex flex-col gap-2">
-                            <Button asChild variant="outline" onClick={() => setIsMenuOpen(false)}>
-                                    <Link href="/auth/login">Log In</Link>
-                            </Button>
-                            <Button asChild onClick={() => setIsMenuOpen(false)}>
-                                <Link href="/auth/register">Register</Link>
-                            </Button>
-                        </div>
-                    )}
-                </div>
-            </SheetContent>
-          </Sheet>
         </div>
       </div>
     </header>
