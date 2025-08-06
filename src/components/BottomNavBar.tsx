@@ -2,7 +2,7 @@
 "use client";
 
 import Link from "next/link";
-import { Ticket, Award, Megaphone, SlidersHorizontal, UserCircle2 } from "lucide-react";
+import { Ticket, Award, Megaphone, SlidersHorizontal, UserCircle2, LogOut } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { usePathname } from "next/navigation";
 import { useAuth } from "@/context/AuthContext";
