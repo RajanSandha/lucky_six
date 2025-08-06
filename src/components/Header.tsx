@@ -1,25 +1,22 @@
 
-
 "use client";
 
 import Link from "next/link";
 import { Ticket, Menu, LogOut, Megaphone, Gift, Shield, Award, SlidersHorizontal, UserCircle2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
-  Sheet,
-  SheetContent,
-  SheetTrigger,
-  SheetClose,
-  SheetTitle,
-} from "@/components/ui/sheet";
-import { useState } from "react";
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import { cn } from "@/lib/utils";
 import { usePathname } from "next/navigation";
 import { useAuth } from "@/context/AuthContext";
-import { Separator } from "./ui/separator";
 
 export default function Header() {
-  const [isMenuOpen, setIsMenuOpen] = useState(false);
   const pathname = usePathname();
   const { user, logout, isAdmin } = useAuth();
   
@@ -46,6 +43,7 @@ export default function Header() {
           </Link>
         </div>
 
+        {/* Desktop Nav */}
         <nav className="hidden md:flex flex-1 items-center space-x-6 text-sm font-medium">
           {visibleNavItems.map((item) => (
             <Link
@@ -62,9 +60,10 @@ export default function Header() {
           ))}
         </nav>
 
-        <div className="flex flex-1 items-center justify-end space-x-4">
+        <div className="flex flex-1 items-center justify-end space-x-2">
+          {/* Desktop Auth */}
           <div className="hidden md:flex items-center gap-2">
-            {user ? (
+             {user ? (
                 <>
                 <span className="hidden sm:inline text-sm text-muted-foreground">Welcome, {user.name}!</span>
                 <Button onClick={logout} variant="ghost" size="icon">
@@ -83,6 +82,35 @@ export default function Header() {
                 </>
             )}
           </div>
+
+          {/* Mobile Auth */}
+          <div className="md:hidden">
+             {user ? (
+                <DropdownMenu>
+                    <DropdownMenuTrigger asChild>
+                         <Button variant="ghost" size="icon">
+                            <UserCircle2 className="h-6 w-6" />
+                         </Button>
+                    </DropdownMenuTrigger>
+                    <DropdownMenuContent align="end" className="w-56">
+                        <DropdownMenuLabel>
+                             <p className="font-semibold">{user.name}</p>
+                             <p className="text-sm font-normal text-muted-foreground">{user.phone}</p>
+                        </DropdownMenuLabel>
+                        <DropdownMenuSeparator />
+                        <DropdownMenuItem onClick={() => logout()}>
+                            <LogOut className="mr-2 h-4 w-4" />
+                            <span>Log out</span>
+                        </DropdownMenuItem>
+                    </DropdownMenuContent>
+                </DropdownMenu>
+            ) : (
+                 <Button asChild variant="ghost" size="sm">
+                    <Link href="/auth/login">Login</Link>
+                </Button>
+            )}
+          </div>
+
         </div>
       </div>
     </header>
