@@ -9,13 +9,13 @@ export default function Footer() {
         </p>
         <div className="flex justify-center space-x-6 mt-4 md:mt-0">
           <Link
-            href="#"
+            href="/terms-of-service"
             className="text-sm text-muted-foreground hover:text-primary transition-colors"
           >
             Terms of Service
           </Link>
           <Link
-            href="#"
+            href="/privacy-policy"
             className="text-sm text-muted-foreground hover:text-primary transition-colors"
           >
             Privacy Policy
