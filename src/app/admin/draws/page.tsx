@@ -31,7 +31,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { useToast } from "@/hooks/use-toast";
-import { PlusCircle, Loader2, MoreHorizontal, Edit, Trash2, Trophy, TestTube2, Megaphone, PlayCircle } from "lucide-react";
+import { PlusCircle, Loader2, MoreHorizontal, Edit, Trash2, Trophy, TestTube2, Megaphone, PlayCircle, SlidersHorizontal } from "lucide-react";
 import { getDraws, deleteDraw, runScheduler } from "./actions";
 import { createMockData } from "./[id]/announce/actions";
 import type { Draw } from "@/lib/types";
@@ -201,7 +201,10 @@ function DrawsAdminPage() {
     <div className="container mx-auto py-12 px-4">
       <div className="flex flex-col md:flex-row justify-between md:items-center gap-4 mb-8">
         <div>
-            <h1 className="text-4xl font-bold font-headline text-primary">Draws Management</h1>
+            <h1 className="text-4xl font-bold font-headline text-primary flex items-center gap-3">
+              <SlidersHorizontal className="h-9 w-9" />
+              Draws Management
+            </h1>
             <p className="text-lg text-muted-foreground mt-2">Create, view, and manage all lottery draws.</p>
         </div>
         <div className="flex flex-col sm:flex-row gap-2">

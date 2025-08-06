@@ -63,7 +63,8 @@ export default async function ResultsPage() {
   return (
     <div className="container mx-auto py-12 px-4">
       <div className="text-center mb-12">
-        <h1 className="text-4xl md:text-5xl font-bold font-headline text-primary">
+        <h1 className="text-4xl md:text-5xl font-bold font-headline text-primary flex items-center justify-center gap-3">
+          <Award className="h-10 w-10" />
           Past Draw Results
         </h1>
         <p className="text-lg text-muted-foreground mt-2">

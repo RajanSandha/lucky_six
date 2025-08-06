@@ -11,7 +11,7 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Trophy, Search, Calendar, CheckCircle } from "lucide-react";
+import { Trophy, Search, Calendar, CheckCircle, Megaphone } from "lucide-react";
 import withAdminAuth from "@/components/withAdminAuth";
 import type { Draw } from "@/lib/types";
 import { Separator } from "@/components/ui/separator";
@@ -25,7 +25,8 @@ function AnnouncementsClientPage({ draws }: { draws: Draw[] }) {
   return (
     <div className="container mx-auto py-12 px-4">
       <div className="text-center mb-12">
-        <h1 className="text-4xl md:text-5xl font-bold font-headline text-primary">
+        <h1 className="text-4xl md:text-5xl font-bold font-headline text-primary flex items-center justify-center gap-3">
+          <Megaphone className="h-10 w-10" />
           Announcements Hub
         </h1>
         <p className="text-lg text-muted-foreground mt-2">

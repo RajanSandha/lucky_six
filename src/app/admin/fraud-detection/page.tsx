@@ -10,7 +10,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { useToast } from "@/hooks/use-toast";
-import { Loader2, ShieldCheck, ShieldAlert } from "lucide-react";
+import { Loader2, ShieldCheck, ShieldAlert, Shield } from "lucide-react";
 import { handleFraudCheck } from "./actions";
 import type { DetectFraudulentUserInput, DetectFraudulentUserOutput } from "@/ai/flows/detect-fraudulent-user";
 import { Progress } from "@/components/ui/progress";
@@ -63,7 +63,8 @@ function FraudDetectionPage() {
   return (
     <div className="container mx-auto py-12 px-4">
       <div className="text-center mb-12">
-        <h1 className="text-4xl md:text-5xl font-bold font-headline text-primary">
+        <h1 className="text-4xl md:text-5xl font-bold font-headline text-primary flex items-center justify-center gap-3">
+          <Shield className="h-10 w-10" />
           Fraud Detection Center
         </h1>
         <p className="text-lg text-muted-foreground mt-2">
