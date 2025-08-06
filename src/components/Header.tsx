@@ -94,16 +94,11 @@ export default function Header() {
             </SheetTrigger>
             <SheetContent side="left" className="flex flex-col">
                <SheetTitle className="sr-only">Main Menu</SheetTitle>
-              <div className="flex items-center justify-between border-b pb-4">
+              <div className="flex items-center border-b pb-4">
                     <Link href="/" className="flex items-center space-x-2" onClick={() => setIsMenuOpen(false)}>
                         <Ticket className="h-6 w-6 text-primary" />
                         <span className="font-bold font-headline text-lg">Lucky Six</span>
                     </Link>
-                    <SheetClose asChild>
-                         <Button variant="ghost" size="icon">
-                            <X className="h-5 w-5" />
-                         </Button>
-                    </SheetClose>
                 </div>
                 <nav className="flex flex-col gap-4 mt-8 flex-1">
                   {visibleNavItems.map((item) => (
