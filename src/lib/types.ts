@@ -31,6 +31,7 @@ export type Draw = {
   winnerId?: string;
   imageUrl?: string;
   status?: 'upcoming' | 'active' | 'awaiting_announcement' | 'announcing' | 'finished';
+  prizeStatus?: 'pending_confirmation' | 'address_confirmed' | 'packed' | 'shipped' | 'delivered';
   roundWinners?: Record<number, string[]>; // Stores all winners for each round, selected at once.
   announcedWinners?: Record<number, string[]>; // Stores winners as they are announced dramatically.
   referralAvailable?: boolean;

@@ -67,6 +67,7 @@ export async function createDraw(formData: FormData) {
       imageUrl: imageUrl,
       createdAt: serverTimestamp(),
       status: 'upcoming',
+      prizeStatus: 'pending_confirmation',
       referralAvailable,
     };
 
@@ -230,5 +231,18 @@ export async function runScheduler() {
     } catch (error: any) {
         console.error('Error running scheduler:', error);
         return { success: false, message: `Failed to run scheduler: ${error.message}` };
+    }
+}
+
+export async function updatePrizeStatus(drawId: string, status: Draw['prizeStatus']) {
+    try {
+        const drawRef = doc(db, 'draws', drawId);
+        await updateDoc(drawRef, { prizeStatus: status });
+        revalidatePath(`/announcements/${drawId}`);
+        revalidatePath(`/admin/announcements`);
+        return { success: true, message: 'Prize status updated successfully!' };
+    } catch (error: any) {
+        console.error('Error updating prize status:', error);
+        return { success: false, message: `Failed to update prize status: ${error.message}` };
     }
 }

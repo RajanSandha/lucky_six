@@ -8,7 +8,7 @@ import type { Draw, Ticket, User } from '@/lib/types';
 import { TicketCard } from './TicketCard';
 import { useWindowSize } from 'react-use';
 import Confetti from 'react-confetti';
-import { Loader2, Crown, Ticket as TicketIcon } from 'lucide-react';
+import { Loader2, Crown, Ticket as TicketIcon, Phone, MessageSquare } from 'lucide-react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from './ui/card';
 import { db } from '@/lib/firebase';
 import { doc, onSnapshot, collection, query, where, getDocs, getDoc } from 'firebase/firestore';
@@ -17,6 +17,11 @@ import { cn } from '@/lib/utils';
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from './ui/accordion';
 import { Avatar, AvatarFallback } from './ui/avatar';
 import { utcToLocalString } from '@/lib/date-utils';
+import { Button } from './ui/button';
+import { Separator } from './ui/separator';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from './ui/select';
+import { updatePrizeStatus } from '@/app/admin/draws/actions';
+import { useToast } from '@/hooks/use-toast';
 
 
 const STAGE_CONFIG = {
@@ -25,6 +30,15 @@ const STAGE_CONFIG = {
   3: { title: 'Semi-Final', subTitle: 'Revealing the 3 Finalists', count: 3 },
   4: { title: 'Final Round!', subTitle: 'The Grand Winner!', count: 1 },
 };
+
+const PRIZE_STATUS_OPTIONS = {
+    pending_confirmation: 'Pending Confirmation',
+    address_confirmed: 'Address Confirmed',
+    packed: 'Packed',
+    shipped: 'Shipped',
+    delivered: 'Delivered'
+};
+
 
 type FullTicket = Ticket & { user: User | null };
 
@@ -110,14 +124,28 @@ function AwaitingCeremonyDisplay({ draw }: { draw: Draw }) {
 }
 
 function FinishedDrawDisplay({ draw, allTickets }: { draw: Draw; allTickets: FullTicket[] }) {
+  const { isAdmin } = useAuth();
+  const { toast } = useToast();
   const finalWinnerId = draw.winningTicketId || draw.announcedWinners?.[4]?.[0] || '';
   const finalWinnerTicket = allTickets.find(t => t.id === finalWinnerId);
-  const winnerName = finalWinnerTicket?.user?.name || 'Anonymous';
+  const winner = finalWinnerTicket?.user;
+  const winnerName = winner?.name || 'Anonymous';
   const winnerInitials = winnerName.split(' ').map(n => n[0]).join('');
 
   const round3Winners = getTicketsByIds(draw.roundWinners?.[3] || [], allTickets);
   const round2Winners = getTicketsByIds(draw.roundWinners?.[2] || [], allTickets);
   const round1Winners = getTicketsByIds(draw.roundWinners?.[1] || [], allTickets);
+
+  const handleStatusChange = async (newStatus: Draw['prizeStatus']) => {
+    if (!draw.id || !newStatus) return;
+    const result = await updatePrizeStatus(draw.id, newStatus);
+    if(result.success) {
+      toast({ title: 'Status Updated', description: result.message });
+    } else {
+      toast({ title: 'Error', description: result.message, variant: 'destructive' });
+    }
+  };
+
 
   return (
     <div className="container mx-auto py-12 px-4">
@@ -135,7 +163,7 @@ function FinishedDrawDisplay({ draw, allTickets }: { draw: Draw; allTickets: Ful
                 <CardTitle className="text-4xl font-headline tracking-tight">Grand Prize Winner</CardTitle>
             </CardHeader>
              <CardContent className="text-center p-0 mt-6">
-                {finalWinnerTicket ? (
+                {winner ? (
                     <div className="flex flex-col items-center gap-4">
                         <Avatar className="h-24 w-24 border-4 border-white/50">
                             <AvatarFallback className="bg-primary/50 text-3xl font-bold">{winnerInitials}</AvatarFallback>
@@ -143,7 +171,7 @@ function FinishedDrawDisplay({ draw, allTickets }: { draw: Draw; allTickets: Ful
                         <h3 className="text-3xl font-bold font-headline">{winnerName}</h3>
                         <div className="bg-background/20 backdrop-blur-sm rounded-lg p-4 w-full max-w-sm">
                              <p className="text-sm opacity-80 mb-1">Winning Ticket</p>
-                             <p className="text-4xl font-mono tracking-widest">{finalWinnerTicket.numbers}</p>
+                             <p className="text-4xl font-mono tracking-widest">{finalWinnerTicket?.numbers}</p>
                         </div>
                     </div>
                 ): (
@@ -151,6 +179,39 @@ function FinishedDrawDisplay({ draw, allTickets }: { draw: Draw; allTickets: Ful
                 )}
             </CardContent>
         </div>
+        {isAdmin && winner && (
+          <CardContent className='p-4'>
+            <h3 className="font-bold text-lg mb-2 text-center">Admin Fulfillment Info</h3>
+            <div className='flex flex-col sm:flex-row justify-between items-center gap-4'>
+              <div>
+                <p className="font-semibold">Winner Contact:</p>
+                <p className='text-muted-foreground'>{winner.phone}</p>
+              </div>
+              <div className='flex items-center gap-2'>
+                <Button asChild variant="outline" size="sm">
+                  <a href={`tel:${winner.phone}`}><Phone className='mr-2'/> Call</a>
+                </Button>
+                 <Button asChild variant="outline" size="sm">
+                  <a href={`https://wa.me/${winner.phone.replace('+', '')}`} target="_blank" rel="noopener noreferrer"><MessageSquare className='mr-2' /> WhatsApp</a>
+                </Button>
+              </div>
+            </div>
+            <Separator className="my-4"/>
+            <div className='flex flex-col sm:flex-row justify-between items-center gap-4'>
+                <p className="font-semibold">Prize Status:</p>
+                <Select onValueChange={handleStatusChange} defaultValue={draw.prizeStatus || 'pending_confirmation'}>
+                  <SelectTrigger className="w-full sm:w-[220px]">
+                    <SelectValue placeholder="Update Status" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {Object.entries(PRIZE_STATUS_OPTIONS).map(([key, value]) => (
+                      <SelectItem key={key} value={key}>{value}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+            </div>
+          </CardContent>
+        )}
       </Card>
 
       <div className="max-w-4xl mx-auto mt-8">
