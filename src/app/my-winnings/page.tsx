@@ -15,6 +15,7 @@ import type { Draw } from '@/lib/types';
 import { Separator } from '@/components/ui/separator';
 import { cn } from '@/lib/utils';
 
+export const dynamic = 'force-dynamic';
 
 const prizeStatusMap: Record<NonNullable<Draw['prizeStatus']>, { label: string; icon: React.ElementType; step: number }> = {
     pending_confirmation: { label: 'Pending Confirmation', icon: CircleDot, step: 1 },
