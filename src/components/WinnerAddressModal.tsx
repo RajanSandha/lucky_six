@@ -1,4 +1,5 @@
 
+
 "use client";
 
 import { useState, useEffect } from 'react';
@@ -17,10 +18,10 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useToast } from '@/hooks/use-toast';
 import { useAuth } from '@/context/AuthContext';
-import type { User } from '@/lib/types';
+import type { User, Draw } from '@/lib/types';
 import { Award } from 'lucide-react';
 
-export function WinnerAddressModal({ winner }: { winner: User | null }) {
+export function WinnerAddressModal({ winner, draw }: { winner: User | null, draw: Draw }) {
   const [open, setOpen] = useState(false);
   const { toast } = useToast();
   const { user } = useAuth();

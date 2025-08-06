@@ -61,7 +61,12 @@ export default async function ResultsPage() {
       pastDraws.map(async (draw) => {
           const winningTicket = draw.winningTicketId ? await getTicketById(draw.winningTicketId) : null;
           const winner = winningTicket ? await getUserById(winningTicket.userId) : null;
-          return {...draw, winningTicket, winner}
+          // Ensure all parts of the draw object are serializable
+          const serializableDraw = {
+            ...draw,
+            createdAt: draw.createdAt instanceof Date ? draw.createdAt : (draw.createdAt as any)?.toDate(),
+          };
+          return {...serializableDraw, winningTicket, winner}
       })
   );
 
@@ -119,7 +124,7 @@ export default async function ResultsPage() {
                     <p className="text-lg font-bold font-mono tracking-widest text-primary">{draw.winningTicket?.numbers || "N/A"}</p>
                   </div>
                    <div className="flex flex-col items-center p-4 bg-muted/50 rounded-lg justify-center">
-                    <WinnerAddressModal winner={draw.winner} />
+                    <WinnerAddressModal winner={draw.winner} draw={draw} />
                   </div>
                 </div>
               </CardContent>
