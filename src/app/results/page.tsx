@@ -35,7 +35,6 @@ async function getUserById(id: string): Promise<UserType | null> {
     return null;
 }
 
-// This is a placeholder for getting ticket by id.
 async function getTicketById(id: string): Promise<TicketType | null> {
     if (!id) return null;
     const ticketSnap = await getDoc(doc(db, "tickets", id));
@@ -44,7 +43,7 @@ async function getTicketById(id: string): Promise<TicketType | null> {
         return {
             id: ticketSnap.id,
             ...data,
-             purchaseDate: data.purchaseDate.toDate(),
+             purchaseDate: data.purchaseDate?.toDate(),
         } as TicketType;
     }
     return null;
@@ -59,14 +58,24 @@ export default async function ResultsPage() {
   // We need to fetch winner and ticket for each draw
   const drawsWithWinnerInfo = await Promise.all(
       pastDraws.map(async (draw) => {
-          const winningTicket = draw.winningTicketId ? await getTicketById(draw.winningTicketId) : null;
-          const winner = winningTicket ? await getUserById(winningTicket.userId) : null;
-          // Ensure all parts of the draw object are serializable
+          const winningTicketData = draw.winningTicketId ? await getTicketById(draw.winningTicketId) : null;
+          const winnerData = winningTicketData ? await getUserById(winningTicketData.userId) : null;
+          
+          // Ensure all parts of the objects are serializable
           const serializableDraw = {
             ...draw,
+            startDate: draw.startDate,
+            endDate: draw.endDate,
+            announcementDate: draw.announcementDate,
             createdAt: draw.createdAt instanceof Date ? draw.createdAt : (draw.createdAt as any)?.toDate(),
           };
-          return {...serializableDraw, winningTicket, winner}
+
+          const serializableTicket = winningTicketData ? {
+              ...winningTicketData,
+              purchaseDate: winningTicketData.purchaseDate
+          } : null;
+
+          return {draw: serializableDraw, winningTicket: serializableTicket, winner: winnerData}
       })
   );
 
@@ -83,8 +92,8 @@ export default async function ResultsPage() {
         </p>
       </div>
       <div className="space-y-8">
-        {drawsWithWinnerInfo.map((draw) => {
-          const winnerName = draw.winner?.name || "Anonymous";
+        {drawsWithWinnerInfo.map(({draw, winningTicket, winner}) => {
+          const winnerName = winner?.name || "Anonymous";
           const winnerInitials = winnerName.split(' ').map(n => n[0]).join('');
 
           return (
@@ -110,7 +119,7 @@ export default async function ResultsPage() {
                     <div className="flex items-center gap-2 mt-1">
                         <Avatar>
                             {/* In a real app, you might have user.imageUrl */}
-                            {/* <AvatarImage src={draw.winner?.imageUrl} alt={winnerName} /> */}
+                            {/* <AvatarImage src={winner?.imageUrl} alt={winnerName} /> */}
                             <AvatarFallback className="bg-primary/20 text-primary font-bold">
                                 {winnerInitials}
                             </AvatarFallback>
@@ -121,10 +130,10 @@ export default async function ResultsPage() {
                   <div className="flex flex-col items-center p-4 bg-muted/50 rounded-lg">
                     <Ticket className="h-8 w-8 text-accent-foreground mb-2" />
                     <h3 className="font-semibold text-muted-foreground">Winning Ticket</h3>
-                    <p className="text-lg font-bold font-mono tracking-widest text-primary">{draw.winningTicket?.numbers || "N/A"}</p>
+                    <p className="text-lg font-bold font-mono tracking-widest text-primary">{winningTicket?.numbers || "N/A"}</p>
                   </div>
                    <div className="flex flex-col items-center p-4 bg-muted/50 rounded-lg justify-center">
-                    <WinnerAddressModal winner={draw.winner} draw={draw} />
+                    <WinnerAddressModal winner={winner} draw={draw} />
                   </div>
                 </div>
               </CardContent>
@@ -140,5 +149,3 @@ export default async function ResultsPage() {
     </div>
   );
 }
-
-    
