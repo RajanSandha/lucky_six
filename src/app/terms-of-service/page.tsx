@@ -14,7 +14,7 @@ export default function TermsOfServicePage() {
             Welcome to Lucky Six! These Terms of Service ("Terms") govern your use of the Lucky Six mobile application and website (collectively, the "Service"), operated by us. By accessing or using our Service, you agree to be bound by these Terms.
           </p>
 
-          <div className="bg-destructive/10 border-l-4 border-destructive text-destructive-foreground p-4 rounded-md">
+          <div className="bg-destructive/10 border-l-4 border-destructive text-destructive p-4 rounded-md">
             <p className="font-bold">Disclaimer:</p>
             <p className="text-sm">The following terms are a template and do not constitute legal advice. It is highly recommended that you consult with a qualified legal professional to ensure full compliance with all applicable Indian laws and regulations.</p>
           </div>

@@ -14,7 +14,7 @@ export default function PrivacyPolicyPage() {
             Lucky Six ("us", "we", or "our") operates the Lucky Six mobile application and website (the "Service"). This page informs you of our policies regarding the collection, use, and disclosure of personal data when you use our Service and the choices you have associated with that data.
           </p>
 
-           <div className="bg-destructive/10 border-l-4 border-destructive text-destructive-foreground p-4 rounded-md">
+           <div className="bg-destructive/10 border-l-4 border-destructive text-destructive p-4 rounded-md">
             <p className="font-bold">Disclaimer:</p>
             <p className="text-sm">The following policy is a template and does not constitute legal advice. It is highly recommended that you consult with a qualified legal professional to ensure full compliance with Indian data protection laws, such as the Digital Personal Data Protection Act (DPDPA), 2023.</p>
           </div>
