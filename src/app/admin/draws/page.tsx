@@ -250,7 +250,7 @@ function DrawsAdminPage() {
                 {isLoading && <TableRow><TableCell colSpan={6} className="text-center"><Loader2 className="mx-auto h-8 w-8 animate-spin"/></TableCell></TableRow>}
                 {!isLoading && draws.map((draw) => {
                     const status = getDrawStatus(draw);
-                    const isEditable = status.text === "Upcoming";
+                    const isEditable = status.text !== "Completed";
                     const canAnnounce = status.text === "Awaiting Announcement" || status.text === "Announcing" || status.text === "Completed";
                     const canBeDeleted = !draw.status || draw.status === 'upcoming'; 
 
