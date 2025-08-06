@@ -19,6 +19,7 @@ import { useToast } from '@/hooks/use-toast';
 import { ArrowRight, Loader2 } from 'lucide-react';
 import { useAuth } from '@/context/AuthContext';
 import { getAuth, RecaptchaVerifier, signInWithPhoneNumber, type ConfirmationResult, type Auth } from 'firebase/auth';
+import { Checkbox } from '@/components/ui/checkbox';
 
 const setupRecaptcha = (auth: Auth) => {
     // Only configure recaptcha if not in test mode
@@ -46,6 +47,7 @@ export default function LoginPage() {
   const [otp, setOtp] = useState(Array(6).fill(''));
   const [confirmationResult, setConfirmationResult] = useState<ConfirmationResult | null>(null);
   const [isLoading, setIsLoading] = useState(false);
+  const [termsAccepted, setTermsAccepted] = useState(false);
   const router = useRouter();
   const { toast } = useToast();
   const { login } = useAuth();
@@ -178,9 +180,23 @@ export default function LoginPage() {
                 <Label htmlFor="phone">Phone Number</Label>
                 <Input id="phone" type="tel" placeholder="+91 98765 43210" value={phone} onChange={e => setPhone(e.target.value)} required />
               </div>
+               <div className="flex items-start space-x-2">
+                <Checkbox id="terms" onCheckedChange={(checked) => setTermsAccepted(checked === true)} />
+                <Label htmlFor="terms" className="text-sm font-normal text-muted-foreground -translate-y-1">
+                  I agree to the{' '}
+                  <Link href="/terms-of-service" className="underline hover:text-primary" target="_blank" rel="noopener noreferrer">
+                    Terms of Service
+                  </Link>{' '}
+                  and{' '}
+                  <Link href="/privacy-policy" className="underline hover:text-primary" target="_blank" rel="noopener noreferrer">
+                    Privacy Policy
+                  </Link>
+                  .
+                </Label>
+              </div>
             </CardContent>
             <CardFooter className="flex flex-col gap-4">
-              <Button type="submit" className="w-full bg-primary hover:bg-primary/90 text-primary-foreground" disabled={isLoading}>
+              <Button type="submit" className="w-full bg-primary hover:bg-primary/90 text-primary-foreground" disabled={isLoading || !termsAccepted}>
                 {isLoading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <>Send OTP <ArrowRight className="ml-2 h-4 w-4" /></>}
               </Button>
               <p className="text-xs text-muted-foreground">
