@@ -24,7 +24,13 @@ async function getUserById(id: string): Promise<UserType | null> {
     const userRef = doc(db, 'users', id);
     const userSnap = await getDoc(userRef);
     if (userSnap.exists()) {
-        return { id: userSnap.id, ...userSnap.data() } as UserType;
+        const data = userSnap.data();
+        return { 
+            id: userSnap.id, 
+            ...data,
+            // Ensure any Timestamps are converted
+            createdAt: data.createdAt?.toDate ? data.createdAt.toDate() : undefined
+        } as UserType;
     }
     return null;
 }
