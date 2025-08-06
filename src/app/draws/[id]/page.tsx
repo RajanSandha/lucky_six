@@ -357,7 +357,9 @@ export default function DrawDetailPage() {
         )}
         <CardHeader>
           <CardTitle className="font-headline text-3xl">{draw.name}</CardTitle>
-          <CardDescription>Prize: ₹{draw.prize.toLocaleString('en-IN')}</CardDescription>
+          <CardDescription>
+            Prize: ₹{draw.prize.toLocaleString('en-IN')} | Ends on: {utcToLocalString(new Date(draw.endDate), 'PPpp')}
+          </CardDescription>
           {statusInfo.isActive && statusInfo.countdownDate && (
              <div className="pt-2">
                 <p className="text-sm text-muted-foreground">Ends In:</p>
