@@ -1,5 +1,4 @@
 
-
 "use client";
 
 import type { Ticket, User } from '@/lib/types';
