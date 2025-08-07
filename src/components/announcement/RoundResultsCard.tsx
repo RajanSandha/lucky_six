@@ -6,6 +6,7 @@ import type { FullTicket } from '@/lib/types';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { TicketCard } from '../TicketCard';
 import { STAGE_CONFIG } from './utils';
+import { Loader2 } from 'lucide-react';
 
 export function RoundResultsCard({ 
     title, 
@@ -52,7 +53,10 @@ export function RoundResultsCard({
                     />
                 )}
                 {isCurrentRound && Array.from({ length: placeholdersCount || 0 }).map((_, i) => (
-                    <div key={`placeholder-${stage}-${i}`} className="p-2 md:p-4 rounded-lg border-2 bg-muted/50 shadow-sm border-dashed animate-pulse min-h-[76px]"/>
+                     <div key={`placeholder-${stage}-${i}`} className="p-2 md:p-4 rounded-lg border-2 bg-muted/50 shadow-sm border-dashed flex flex-col items-center justify-center gap-2 text-muted-foreground min-h-[92px]">
+                        <Loader2 className="h-6 w-6 animate-spin"/>
+                        <span className="text-xs font-semibold">Selecting...</span>
+                    </div>
                 ))}
             </CardContent>
         </Card>
