@@ -7,7 +7,6 @@ import { db } from '@/lib/firebase';
 import type { Draw, Ticket, User, FullTicket } from '@/lib/types';
 import { STAGE_CONFIG } from './utils';
 
-
 export function useAnnouncementData(drawId: string) {
     const [draw, setDraw] = useState<Draw | null>(null);
     const [allTickets, setAllTickets] = useState<FullTicket[]>([]);
@@ -24,7 +23,6 @@ export function useAnnouncementData(drawId: string) {
         const fetchInitialData = async () => {
             setLoading(true);
             try {
-                // Fetch all tickets for the draw once
                 const ticketsQuery = query(collection(db, 'tickets'), where('drawId', '==', drawId));
                 const ticketsSnapshot = await getDocs(ticketsQuery);
                 const allTicketsData = await Promise.all(ticketsSnapshot.docs.map(async (docSnapshot) => {
@@ -71,10 +69,37 @@ export function useAnnouncementData(drawId: string) {
 }
 
 
+function getCurrentStage(draw: Draw | null): number {
+    if (!draw) return 1;
+
+    let currentStage = 1;
+    if(draw.announcedWinners && draw.roundWinners) {
+        const roundKeys = Object.keys(draw.roundWinners).map(Number).sort();
+        for(const s of roundKeys) {
+            if (s > 4) continue; 
+            const stageConfig = STAGE_CONFIG[s as keyof typeof STAGE_CONFIG];
+            if (!stageConfig) continue;
+
+            const announcedForStage = draw.announcedWinners[s] || [];
+            if (announcedForStage.length < stageConfig.count) {
+                currentStage = s;
+                break;
+            }
+            if (announcedForStage.length === stageConfig.count) {
+                currentStage = s + 1;
+            }
+        }
+    }
+    return currentStage;
+}
+
 export function useCeremonyState(draw: Draw | null) {
     const [viewState, setViewState] = useState<'awaiting' | 'announcing' | 'finale' | 'finished'>('awaiting');
     const [revealingTicketId, setRevealingTicketId] = useState<string | null>(null);
     const [revealedWinnerIds, setRevealedWinnerIds] = useState<Set<string>>(new Set());
+    const [currentStage, setCurrentStage] = useState(1);
+    const [isIntermission, setIsIntermission] = useState(false);
+    const intermissionTimer = useRef<NodeJS.Timeout | null>(null);
 
     const handleRevealComplete = useCallback((ticketId: string) => {
         setRevealedWinnerIds(prev => new Set(prev).add(ticketId));
@@ -84,47 +109,72 @@ export function useCeremonyState(draw: Draw | null) {
     useEffect(() => {
         if (!draw) return;
 
-        // Determine current view state based on draw status
+        const stage = getCurrentStage(draw);
+        setCurrentStage(stage);
+
         if (draw.status === 'finished') {
-            if (viewState !== 'finale' && viewState !== 'finished') {
-                setViewState('finished');
-            }
+            if (viewState !== 'finale' && viewState !== 'finished') setViewState('finished');
         } else if (draw.status === 'announcing' || (draw.announcedWinners && Object.keys(draw.announcedWinners).length > 0)) {
             const announcedRounds = Object.keys(draw.announcedWinners || {}).map(Number);
             const semiFinalAnnounced = announcedRounds.includes(3) && draw.announcedWinners![3].length === STAGE_CONFIG[3].count;
             
             if (semiFinalAnnounced) {
-                if (viewState !== 'finale') {
-                    setViewState('finale');
-                }
+                if (viewState !== 'finale') setViewState('finale');
                 return;
             }
-            if (viewState !== 'announcing') {
-                setViewState('announcing');
+            if (viewState !== 'announcing') setViewState('announcing');
+
+            // --- Intermission Logic ---
+            const prevStage = stage - 1;
+            if (prevStage > 0 && prevStage < 4) {
+                const prevStageConfig = STAGE_CONFIG[prevStage as keyof typeof STAGE_CONFIG];
+                const announcedInPrevStage = draw.announcedWinners?.[prevStage]?.length || 0;
+                const isPrevStageComplete = announcedInPrevStage === prevStageConfig.count;
+                const isCurrentStageStarted = (draw.announcedWinners?.[stage]?.length || 0) > 0 || !!revealingTicketId;
+
+                if (isPrevStageComplete && !isCurrentStageStarted && !isIntermission) {
+                    setIsIntermission(true);
+                    if (intermissionTimer.current) clearTimeout(intermissionTimer.current);
+                    // The delay should roughly match the backend delay for the next round to start
+                    intermissionTimer.current = setTimeout(() => {
+                        setIsIntermission(false);
+                    }, 8000); // 8 second intermission
+                }
             }
 
 
+            // --- Reveal Logic ---
             const allAnnouncedWinners = Object.values(draw.announcedWinners || {}).flat();
             const previouslyRevealedIds = new Set([...revealedWinnerIds, ...allAnnouncedWinners.filter(id => id !== revealingTicketId)]);
             const newWinner = allAnnouncedWinners.find(id => !previouslyRevealedIds.has(id));
 
-
-            if (newWinner && !revealingTicketId) {
+            if (newWinner && !revealingTicketId && !isIntermission) {
                 setRevealingTicketId(newWinner);
             }
 
-        } else if (viewState !== 'awaiting') {
-            // This logic ensures we check dates before setting to 'awaiting'
-            const now = new Date();
-            const announcementDate = draw.announcementDate ? new Date(draw.announcementDate) : null;
-            if (announcementDate && now >= announcementDate) {
-                 if (viewState !== 'announcing') setViewState('announcing');
-            } else {
-                 if (viewState !== 'awaiting') setViewState('awaiting');
+        } else {
+             if (viewState !== 'awaiting') {
+                const now = new Date();
+                const announcementDate = draw.announcementDate ? new Date(draw.announcementDate) : null;
+                if (announcementDate && now >= announcementDate) {
+                    if (viewState !== 'announcing') setViewState('announcing');
+                } else {
+                    if (viewState !== 'awaiting') setViewState('awaiting');
+                }
             }
         }
+        
+        return () => {
+             if (intermissionTimer.current) clearTimeout(intermissionTimer.current);
+        }
 
-    }, [draw, revealedWinnerIds, revealingTicketId, viewState]);
+    }, [draw, revealedWinnerIds, revealingTicketId, viewState, isIntermission]);
 
-    return { viewState, setViewState, revealingTicketId, setRevealingTicketId, handleRevealComplete };
+    return { 
+        viewState, setViewState, 
+        revealingTicketId, setRevealingTicketId, 
+        handleRevealComplete,
+        currentStage,
+        isIntermission
+    };
 }

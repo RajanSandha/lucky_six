@@ -104,12 +104,12 @@ export const scheduleWinnerSelection = ai.defineFlow(
             const announcedWinners = currentDrawData.announcedWinners || { 1: [], 2: [], 3: [], 4: [] };
 
             const announceRound = async (round: number, delay: number, nextRoundDelay: number) => {
-                 if (announcedWinners[round].length >= allRoundWinners[round].length) {
+                 if (announcedWinners[round] && announcedWinners[round].length >= allRoundWinners[round].length) {
                     return true; // Round already fully announced
                 }
                 console.log(`Announcing round ${round} for draw ${drawId}`);
                 for (const winnerId of allRoundWinners[round]) {
-                    if (!announcedWinners[round].includes(winnerId)) {
+                     if (!announcedWinners[round] || !announcedWinners[round].includes(winnerId)) {
                         await sleep(delay);
                         await updateDoc(drawRef, {
                             [`announcedWinners.${round}`]: arrayUnion(winnerId)
@@ -122,10 +122,11 @@ export const scheduleWinnerSelection = ai.defineFlow(
             };
 
             // This logic is now idempotent. It will pick up where it left off.
-            if (await announceRound(1, 3000, 10000)) { // 3s delay, 10s to next round
-                if (await announceRound(2, 5000, 15000)) { // 5s delay, 15s to next round
-                    if (await announceRound(3, 5000, 20000)) { // 5s delay, 20s to next round
-                        if (await announceRound(4, 5000, 5000)) { // 5s delay, 5s to finish
+            // Announce rounds with pauses for frontend animations
+            if (await announceRound(1, 2000, 5000)) { // 2s reveal delay, 5s to next round
+                if (await announceRound(2, 3000, 8000)) { // 3s reveal delay, 8s to next round
+                    if (await announceRound(3, 3000, 10000)) { // 3s reveal delay, 10s to finale
+                        if (await announceRound(4, 3000, 5000)) { // 3s reveal delay, 5s to finish
                              await updateDoc(drawRef, { status: 'finished' });
                              console.log(`Finished announcing all winners for draw ${drawId}`);
                         }

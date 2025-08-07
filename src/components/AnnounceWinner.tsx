@@ -14,7 +14,14 @@ import { AnnouncingDisplay } from './announcement/AnnouncingDisplay';
 export function AnnounceWinner({ params }: { params: { id: string } }) {
     const { user } = useAuth();
     const { draw, allTickets, loading, error } = useAnnouncementData(params.id);
-    const { viewState, setViewState, revealingTicketId, handleRevealComplete } = useCeremonyState(draw);
+    const { 
+        viewState, 
+        setViewState, 
+        revealingTicketId, 
+        handleRevealComplete,
+        currentStage,
+        isIntermission
+    } = useCeremonyState(draw);
 
     if (loading) {
         return <div className="flex h-screen items-center justify-center"><Loader2 className="h-16 w-16 animate-spin text-primary" /></div>;
@@ -42,7 +49,6 @@ export function AnnounceWinner({ params }: { params: { id: string } }) {
                />;
     }
     
-    // Default to the main "announcing" view
     return (
         <AnnouncingDisplay 
             draw={draw}
@@ -50,6 +56,8 @@ export function AnnounceWinner({ params }: { params: { id: string } }) {
             user={user}
             revealingTicketId={revealingTicketId}
             onRevealComplete={handleRevealComplete}
+            currentStage={currentStage}
+            isIntermission={isIntermission}
         />
     );
 }
