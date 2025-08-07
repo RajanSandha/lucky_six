@@ -28,6 +28,9 @@ export function RoundResultsCard({
     const stageData = STAGE_CONFIG[stage as keyof typeof STAGE_CONFIG];
     const count = stageData.count;
 
+    // The ticket currently doing the number-roll animation
+    const isActivelyRevealing = isCurrentRound && revealingTicket && onRevealComplete;
+
     return (
         <Card>
             <CardHeader>
@@ -42,7 +45,7 @@ export function RoundResultsCard({
                         round={stage}
                     />
                 ))}
-                {isCurrentRound && revealingTicket && onRevealComplete && (
+                {isActivelyRevealing && (
                      <TicketCard
                         key={`revealing-${stage}-${revealingTicket.id}`}
                         ticket={revealingTicket}
@@ -52,12 +55,24 @@ export function RoundResultsCard({
                         round={stage}
                     />
                 )}
-                {isCurrentRound && Array.from({ length: placeholdersCount || 0 }).map((_, i) => (
+                {isCurrentRound && Array.from({ length: placeholdersCount || 0 }).map((_, i) => {
+                    // Only the very next placeholder shows the "Selecting..." animation.
+                    // If a ticket is already revealing, no other placeholder should be active.
+                    const isActivePlaceholder = i === 0 && !isActivelyRevealing;
+                    
+                    return (
                      <div key={`placeholder-${stage}-${i}`} className="p-2 md:p-4 rounded-lg border-2 bg-muted/50 shadow-sm border-dashed flex flex-col items-center justify-center gap-2 text-muted-foreground min-h-[92px]">
-                        <Loader2 className="h-6 w-6 animate-spin"/>
-                        <span className="text-xs font-semibold">Selecting...</span>
+                        {isActivePlaceholder ? (
+                            <>
+                                <Loader2 className="h-6 w-6 animate-spin"/>
+                                <span className="text-xs font-semibold">Selecting...</span>
+                            </>
+                        ) : (
+                            <div className="h-6 w-6"></div> 
+                        )}
                     </div>
-                ))}
+                    )
+                })}
             </CardContent>
         </Card>
     );
