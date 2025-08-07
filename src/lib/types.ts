@@ -1,3 +1,4 @@
+
 export type User = {
   id: string;
   name: string;
@@ -17,6 +18,8 @@ export type Ticket = {
   purchaseDate: Date;
   isReferral?: boolean;
 };
+
+export type FullTicket = Ticket & { user: User | null };
 
 export type Draw = {
   id: string;
