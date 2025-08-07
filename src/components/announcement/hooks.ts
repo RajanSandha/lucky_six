@@ -109,12 +109,21 @@ export function useCeremonyState(draw: Draw | null) {
     useEffect(() => {
         if (!draw) return;
 
+        // Cleanup any running timers on re-render
+        if (intermissionTimer.current) {
+            clearTimeout(intermissionTimer.current);
+            intermissionTimer.current = null;
+        }
+
         const stage = getCurrentStage(draw);
         setCurrentStage(stage);
 
         if (draw.status === 'finished') {
             if (viewState !== 'finale' && viewState !== 'finished') setViewState('finished');
-        } else if (draw.status === 'announcing' || (draw.announcedWinners && Object.keys(draw.announcedWinners).length > 0)) {
+            return;
+        }
+        
+        if (draw.status === 'announcing' || (draw.announcedWinners && Object.keys(draw.announcedWinners).length > 0)) {
             const announcedRounds = Object.keys(draw.announcedWinners || {}).map(Number);
             const semiFinalAnnounced = announcedRounds.includes(3) && draw.announcedWinners![3].length === STAGE_CONFIG[3].count;
             
@@ -122,25 +131,33 @@ export function useCeremonyState(draw: Draw | null) {
                 if (viewState !== 'finale') setViewState('finale');
                 return;
             }
+
             if (viewState !== 'announcing') setViewState('announcing');
 
             // --- Intermission Logic ---
             const prevStage = stage - 1;
+            const isCurrentStageStarted = (draw.announcedWinners?.[stage]?.length || 0) > 0 || !!revealingTicketId;
+
             if (prevStage > 0 && prevStage < 4) {
                 const prevStageConfig = STAGE_CONFIG[prevStage as keyof typeof STAGE_CONFIG];
                 const announcedInPrevStage = draw.announcedWinners?.[prevStage]?.length || 0;
                 const isPrevStageComplete = announcedInPrevStage === prevStageConfig.count;
-                const isCurrentStageStarted = (draw.announcedWinners?.[stage]?.length || 0) > 0 || !!revealingTicketId;
 
                 if (isPrevStageComplete && !isCurrentStageStarted && !isIntermission) {
                     setIsIntermission(true);
-                    if (intermissionTimer.current) clearTimeout(intermissionTimer.current);
-                    // The delay should roughly match the backend delay for the next round to start
                     intermissionTimer.current = setTimeout(() => {
                         setIsIntermission(false);
+                        intermissionTimer.current = null;
                     }, 10000); // 10 second intermission
+                    return; // Return here to show intermission screen
                 }
             }
+            
+            if (isIntermission && isCurrentStageStarted) {
+                setIsIntermission(false);
+            }
+
+            if(isIntermission) return; // Don't proceed to reveal logic if in intermission
 
 
             // --- Reveal Logic ---
@@ -148,7 +165,7 @@ export function useCeremonyState(draw: Draw | null) {
             const previouslyRevealedIds = new Set([...revealedWinnerIds, ...allAnnouncedWinners.filter(id => id !== revealingTicketId)]);
             const newWinner = allAnnouncedWinners.find(id => !previouslyRevealedIds.has(id));
 
-            if (newWinner && !revealingTicketId && !isIntermission) {
+            if (newWinner && !revealingTicketId) {
                 setRevealingTicketId(newWinner);
             }
 
@@ -165,7 +182,9 @@ export function useCeremonyState(draw: Draw | null) {
         }
         
         return () => {
-             if (intermissionTimer.current) clearTimeout(intermissionTimer.current);
+             if (intermissionTimer.current) {
+                clearTimeout(intermissionTimer.current);
+             }
         }
 
     }, [draw, revealedWinnerIds, revealingTicketId, viewState, isIntermission]);
