@@ -81,7 +81,7 @@ export default function RoundCompletedDisplay({
             
             <div className="w-full max-w-md">
                 <p className="text-sm font-semibold mb-2">Preparing Next Round...</p>
-                <Progress value={progress} className="w-full transition-all duration-[7000ms] ease-linear" />
+                <Progress value={progress} className="w-full transition-all duration-[9000ms] ease-linear" />
             </div>
         </div>
     );

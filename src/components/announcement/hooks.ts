@@ -138,7 +138,7 @@ export function useCeremonyState(draw: Draw | null) {
                     // The delay should roughly match the backend delay for the next round to start
                     intermissionTimer.current = setTimeout(() => {
                         setIsIntermission(false);
-                    }, 8000); // 8 second intermission
+                    }, 10000); // 10 second intermission
                 }
             }
 

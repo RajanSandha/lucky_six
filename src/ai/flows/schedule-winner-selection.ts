@@ -123,10 +123,10 @@ export const scheduleWinnerSelection = ai.defineFlow(
 
             // This logic is now idempotent. It will pick up where it left off.
             // Announce rounds with pauses for frontend animations
-            if (await announceRound(1, 2000, 5000)) { // 2s reveal delay, 5s to next round
-                if (await announceRound(2, 3000, 8000)) { // 3s reveal delay, 8s to next round
+            if (await announceRound(1, 5000, 10000)) { // 5s reveal delay, 10s to next round
+                if (await announceRound(2, 3000, 10000)) { // 3s reveal delay, 10s to next round
                     if (await announceRound(3, 3000, 10000)) { // 3s reveal delay, 10s to finale
-                        if (await announceRound(4, 3000, 5000)) { // 3s reveal delay, 5s to finish
+                        if (await announceRound(4, 3000, 10000)) { // 3s reveal delay, 10s to finish
                              await updateDoc(drawRef, { status: 'finished' });
                              console.log(`Finished announcing all winners for draw ${drawId}`);
                         }
