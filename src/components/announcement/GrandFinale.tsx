@@ -24,10 +24,12 @@ export default function GrandFinale({ draw, allTickets, onComplete }: { draw: Dr
             return () => clearTimeout(timer);
         } else if (!revealed && winner) {
             setRevealed(true);
-            const finalTimer = setTimeout(onComplete, 8000); // Wait 8s before moving to finished screen
+            const finalTimer = setTimeout(() => {
+                window.location.reload();
+            }, 8000); // Wait 8s before refreshing the page
             return () => clearTimeout(finalTimer);
         }
-    }, [countdown, onComplete, revealed, winner]);
+    }, [countdown, revealed, winner]);
     
     if (!revealed) {
         return (
