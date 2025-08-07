@@ -1,5 +1,4 @@
 
-
 "use client";
 
 import Link from "next/link";
@@ -15,6 +14,48 @@ import { Button } from "@/components/ui/button";
 import { Trophy, Search, Calendar, CheckCircle, Radio, Clock, Megaphone } from "lucide-react";
 import type { Draw } from "@/lib/types";
 import { Separator } from "@/components/ui/separator";
+import { useState, useEffect } from "react";
+import { cn } from "@/lib/utils";
+
+
+const awaitingMessages = [
+    "Awaiting Ceremony...",
+    "Verifying all entries...",
+    "Finalizing qualifiers...",
+    "Almost time!",
+    "Our system is ensuring fairness...",
+    "The tension is mounting!",
+];
+
+const AwaitingCeremonyLabel = () => {
+    const [messageIndex, setMessageIndex] = useState(0);
+
+    useEffect(() => {
+        const intervalId = setInterval(() => {
+            setMessageIndex(prevIndex => (prevIndex + 1) % awaitingMessages.length);
+        }, 3000); // Change message every 3 seconds
+
+        return () => clearInterval(intervalId);
+    }, []);
+
+    return (
+        <div className="relative h-5">
+            {awaitingMessages.map((msg, index) => (
+                <span
+                    key={index}
+                    className={cn(
+                        "absolute inset-0 transition-opacity duration-1000 ease-in-out flex items-center gap-2",
+                        index === messageIndex ? "opacity-100" : "opacity-0"
+                    )}
+                >
+                    <Clock className="h-4 w-4" />
+                    {msg}
+                </span>
+            ))}
+        </div>
+    );
+};
+
 
 export default function AnnouncementsClientPage({ draws }: { draws: Draw[] }) {
   const now = new Date();
@@ -101,9 +142,13 @@ export default function AnnouncementsClientPage({ draws }: { draws: Draw[] }) {
                                 <Image src={draw.imageUrl || 'https://placehold.co/600x400.png'} alt={draw.name} layout="fill" objectFit="cover" className="rounded-t-lg" data-ai-hint="prize giveaway" />
                             </div>
                             <CardTitle className="font-headline text-2xl">{draw.name}</CardTitle>
-                            <CardDescription className="flex items-center gap-2">
-                                <Clock className="h-4 w-4" />
-                                {isAwaiting ? "Awaiting Ceremony" : `Scheduled for ${new Date(draw.announcementDate).toLocaleString()}`}
+                            <CardDescription>
+                                {isAwaiting ? <AwaitingCeremonyLabel /> : (
+                                     <span className="flex items-center gap-2">
+                                        <Clock className="h-4 w-4" />
+                                        Scheduled for {new Date(draw.announcementDate).toLocaleString()}
+                                    </span>
+                                )}
                             </CardDescription>
                         </CardHeader>
                         <CardContent className="flex-grow">
@@ -118,7 +163,7 @@ export default function AnnouncementsClientPage({ draws }: { draws: Draw[] }) {
                             <Button asChild className="w-full bg-accent text-accent-foreground hover:bg-accent/90">
                             <Link href={`/announcements/${draw.id}`}>
                                 <Trophy className="mr-2 h-4 w-4" />
-                                {isAwaiting ? "Watch Ceremony" : "View Ceremony"}
+                                View Ceremony
                             </Link>
                             </Button>
                         </CardContent>
