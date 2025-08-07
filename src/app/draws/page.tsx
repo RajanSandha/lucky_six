@@ -13,9 +13,9 @@ import { Button } from "@/components/ui/button";
 import { Ticket, Search, Clock, Gift } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { getDraws } from "../admin/draws/actions";
-import { Countdown } from "@/components/Countdown";
 import type { Draw } from "@/lib/types";
 import { getCurrentDateInUTC } from "@/lib/date-utils";
+import { DrawCardCountdown } from "@/components/DrawCardCountdown";
 
 export const dynamic = 'force-dynamic';
 
@@ -54,22 +54,7 @@ export default async function DrawsPage() {
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
           {visibleDraws.map((draw) => {
             const statusInfo = getDrawStatusInfo(draw);
-            const timeRemaining = new Date(statusInfo.countdownDate).getTime() - now.getTime();
             
-            const days = Math.floor(timeRemaining / (1000 * 60 * 60 * 24));
-            const hours = Math.floor((timeRemaining % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
-            const minutes = Math.floor((timeRemaining % (1000 * 60 * 60)) / (1000 * 60));
-
-            let timeLeftBadge;
-            if (days > 0) {
-              timeLeftBadge = `${days}d ${hours}h`;
-            } else if (hours > 0) {
-              timeLeftBadge = `${hours}h ${minutes}m`;
-            } else {
-              timeLeftBadge = `${minutes}m`;
-            }
-
-
             return (
               <Card key={draw.id} className="flex flex-col shadow-lg hover:shadow-xl transition-shadow duration-300 overflow-hidden">
                 {draw.imageUrl && (
@@ -104,7 +89,7 @@ export default async function DrawsPage() {
                   </div>
                   <div className="flex justify-between items-center">
                     <span className="text-sm font-semibold text-muted-foreground">{statusInfo.isUpcoming ? 'Starts In' : 'Ends In'}</span>
-                    <Badge variant="secondary">{timeLeftBadge}</Badge>
+                    <DrawCardCountdown targetDate={statusInfo.countdownDate} />
                   </div>
                 </CardContent>
                 <CardFooter>
