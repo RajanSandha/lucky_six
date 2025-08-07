@@ -11,18 +11,12 @@ import { TicketCard } from '../TicketCard';
 import { getTicketsByIds } from './utils';
 
 export default function GrandFinale({ draw, allTickets, onComplete }: { draw: Draw, allTickets: FullTicket[], onComplete: () => void }) {
-    const [countdown, setCountdown] = useState(25);
+    const [countdown, setCountdown] = useState(5); // Start with a shorter countdown
     const [revealed, setRevealed] = useState(false);
     const { width, height } = useWindowSize();
     
-    const finalists = getTicketsByIds(draw.announcedWinners?.[3] || [], allTickets);
-    const winner = getTicketsByIds(draw.announcedWinners?.[4] || [], allTickets)[0] || null;
-
-    useEffect(() => {
-        if(winner && countdown > 5) {
-             setCountdown(5);
-        }
-    }, [winner, countdown]);
+    const finalists = getTicketsByIds(draw.roundWinners?.[3] || [], allTickets);
+    const winner = getTicketsByIds(draw.roundWinners?.[4] || [], allTickets)[0] || null;
 
     useEffect(() => {
         if (countdown > 0) {

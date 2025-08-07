@@ -129,15 +129,13 @@ export function useCeremonyState(draw: Draw | null) {
         }
         
         if (draw.status === 'announcing' || (draw.announcedWinners && Object.keys(draw.announcedWinners).length > 0)) {
-            const announcedRounds = Object.keys(draw.announcedWinners || {}).map(Number);
-            const semiFinalAnnounced = announcedRounds.includes(3) && draw.announcedWinners![3].length === STAGE_CONFIG[3].count;
+            const finalWinnerAnnounced = (draw.announcedWinners?.[4]?.length || 0) > 0;
             
-            if (semiFinalAnnounced) {
-                // If finale hasn't been triggered yet, set a timer for it.
+            if (finalWinnerAnnounced) {
                 if (viewState !== 'finale' && !finaleTimer.current) {
                     finaleTimer.current = setTimeout(() => {
                          setViewState('finale');
-                    }, 5000); // 5 second delay before finale
+                    }, 5000); // 5 second delay before finale screen
                 }
                 return;
             }

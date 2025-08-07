@@ -33,22 +33,35 @@ export function AnnouncingDisplay({
     const userTickets = allTickets?.filter(t => t.userId === user?.id) || [];
     const stageConfig = STAGE_CONFIG[currentStage as keyof typeof STAGE_CONFIG];
     
-    if (!stageConfig || currentStage > 3) {
-        return <div className="flex h-screen items-center justify-center"><p>Preparing finale...</p></div>;
+    if (currentStage > 4) {
+        return (
+             <div className="fixed inset-0 bg-background/90 backdrop-blur-sm z-40 flex flex-col items-center justify-center gap-8 p-4">
+                 <Loader2 className="h-16 w-16 animate-spin text-primary" />
+                 <h2 className="text-2xl text-center font-headline font-bold text-primary">Preparing Grand Finale...</h2>
+             </div>
+        )
+    }
+
+    if (!stageConfig) {
+        return <div className="flex h-screen items-center justify-center"><p>Loading ceremony...</p></div>;
     }
 
     const announcedForThisStage = getTicketsByIds(draw.announcedWinners?.[currentStage] || [], allTickets);
     const placeholdersCount = Math.max(0, stageConfig.count - announcedForThisStage.length - (revealingTicketId ? 1 : 0));
     const revealingTicket = allTickets.find(t => t.id === revealingTicketId);
 
+    // Special logic for when semi-final is complete
+    const isAwaitingFinale = completedStage === 3 && isIntermission;
+
+
     return (
         <div className="container mx-auto py-12 px-4">
             <div className="text-center mb-8">
                 <h1 className="text-2xl md:text-3xl font-bold font-headline text-primary">
-                    {stageConfig.title}
+                    {isAwaitingFinale ? "Finalists Decided!" : stageConfig.title}
                 </h1>
                 <p className="text-muted-foreground mt-2">
-                    {stageConfig.subTitle}
+                     {isAwaitingFinale ? "The grand winner will be revealed shortly!" : stageConfig.subTitle}
                 </p>
             </div>
 
@@ -106,18 +119,20 @@ export function AnnouncingDisplay({
                     </CardContent>
                 </Card>
 
-                <RoundResultsCard 
-                    title="Selected This Round"
-                    tickets={announcedForThisStage}
-                    stage={currentStage}
-                    isCurrentRound={true}
-                    revealingTicket={revealingTicket}
-                    onRevealComplete={onRevealComplete}
-                    placeholdersCount={placeholdersCount}
-                    isCelebrating={isIntermission && completedStage === currentStage}
-                />
+                 {currentStage < 4 && (
+                    <RoundResultsCard 
+                        title="Selected This Round"
+                        tickets={announcedForThisStage}
+                        stage={currentStage}
+                        isCurrentRound={true}
+                        revealingTicket={revealingTicket}
+                        onRevealComplete={onRevealComplete}
+                        placeholdersCount={placeholdersCount}
+                        isCelebrating={isIntermission && completedStage === currentStage}
+                    />
+                 )}
                 
-                {isIntermission && completedStage !== currentStage && (
+                {isIntermission && completedStage !== currentStage && !isAwaitingFinale && (
                     <Card>
                         <CardHeader>
                             <CardTitle>Preparing Next Round...</CardTitle>
@@ -141,7 +156,7 @@ export function AnnouncingDisplay({
                                 title={`${stageData.title} (Completed)`}
                                 tickets={announcedForStage}
                                 stage={stageNum}
-                                isCelebrating={isIntermission && completedStage === stageNum}
+                                isCelebrating={(isIntermission && completedStage === stageNum) || (isAwaitingFinale && stageNum === 3)}
                             />
                         );
                     }
