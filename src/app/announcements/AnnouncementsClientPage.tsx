@@ -12,19 +12,18 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Trophy, Search, Calendar, CheckCircle, Radio, ArrowRight, Megaphone } from "lucide-react";
+import { Trophy, Search, Calendar, CheckCircle, Radio, Clock, Megaphone } from "lucide-react";
 import type { Draw } from "@/lib/types";
 import { Separator } from "@/components/ui/separator";
 
 export default function AnnouncementsClientPage({ draws }: { draws: Draw[] }) {
   const now = new Date();
   
-  const announcingDraws = draws.filter(d => d.status === 'announcing' || (new Date(d.announcementDate) <= now && d.status !== 'finished')).slice(0, 5);
+  const announcingDraws = draws.filter(d => d.status === 'announcing');
   const upcomingDraws = draws.filter(d => 
     d.status !== 'finished' && 
-    new Date(d.endDate) < now && 
-    new Date(d.announcementDate) > now &&
-    !announcingDraws.some(ad => ad.id === d.id) // Exclude draws that are already announcing
+    d.status !== 'announcing' &&
+    new Date(d.endDate) < now 
   ).slice(0, 5);
   const pastDraws = draws.filter(d => d.status === 'finished').slice(0, 10);
 
@@ -52,7 +51,7 @@ export default function AnnouncementsClientPage({ draws }: { draws: Draw[] }) {
                 <Card key={draw.id} className="flex flex-col shadow-lg hover:shadow-xl transition-shadow duration-300 border-purple-500/50">
                 <CardHeader>
                     <div className="relative h-48 w-full mb-4">
-                        <Image src={draw.imageUrl || 'https://placehold.co/600x400.png'} alt={draw.name} layout="fill" objectFit="cover" className="rounded-t-lg" data-ai-hint="lottery prize" />
+                        <Image src={draw.imageUrl || 'https://placehold.co/600x400.png'} alt={draw.name} layout="fill" objectFit="cover" className="rounded-t-lg" data-ai-hint="prize giveaway" />
                     </div>
                     <CardTitle className="font-headline text-2xl">{draw.name}</CardTitle>
                     <CardDescription>Ceremony in progress...</CardDescription>
@@ -93,33 +92,39 @@ export default function AnnouncementsClientPage({ draws }: { draws: Draw[] }) {
         </h2>
         {upcomingDraws.length > 0 ? (
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
-            {upcomingDraws.map((draw) => (
-                <Card key={draw.id} className="flex flex-col shadow-lg hover:shadow-xl transition-shadow duration-300">
-                <CardHeader>
-                    <div className="relative h-48 w-full mb-4">
-                        <Image src={draw.imageUrl || 'https://placehold.co/600x400.png'} alt={draw.name} layout="fill" objectFit="cover" className="rounded-t-lg" data-ai-hint="lottery prize" />
-                    </div>
-                    <CardTitle className="font-headline text-2xl">{draw.name}</CardTitle>
-                    <CardDescription>Results scheduled for {new Date(draw.announcementDate).toLocaleString()}</CardDescription>
-                </CardHeader>
-                <CardContent className="flex-grow">
-                    <div className="flex justify-between items-center">
-                        <span className="text-sm font-semibold text-muted-foreground">Prize Pool</span>
-                        <span className="text-2xl font-bold text-primary font-headline">
-                        ₹{draw.prize.toLocaleString('en-IN')}
-                        </span>
-                    </div>
-                </CardContent>
-                <CardContent>
-                    <Button asChild className="w-full bg-accent text-accent-foreground hover:bg-accent/90">
-                    <Link href={`/announcements/${draw.id}`}>
-                        <Trophy className="mr-2 h-4 w-4" />
-                        View Ceremony
-                    </Link>
-                    </Button>
-                </CardContent>
-                </Card>
-            ))}
+            {upcomingDraws.map((draw) => {
+                const isAwaiting = new Date(draw.announcementDate) <= now;
+                return (
+                    <Card key={draw.id} className="flex flex-col shadow-lg hover:shadow-xl transition-shadow duration-300">
+                        <CardHeader>
+                            <div className="relative h-48 w-full mb-4">
+                                <Image src={draw.imageUrl || 'https://placehold.co/600x400.png'} alt={draw.name} layout="fill" objectFit="cover" className="rounded-t-lg" data-ai-hint="prize giveaway" />
+                            </div>
+                            <CardTitle className="font-headline text-2xl">{draw.name}</CardTitle>
+                            <CardDescription className="flex items-center gap-2">
+                                <Clock className="h-4 w-4" />
+                                {isAwaiting ? "Awaiting Ceremony" : `Scheduled for ${new Date(draw.announcementDate).toLocaleString()}`}
+                            </CardDescription>
+                        </CardHeader>
+                        <CardContent className="flex-grow">
+                            <div className="flex justify-between items-center">
+                                <span className="text-sm font-semibold text-muted-foreground">Prize Pool</span>
+                                <span className="text-2xl font-bold text-primary font-headline">
+                                ₹{draw.prize.toLocaleString('en-IN')}
+                                </span>
+                            </div>
+                        </CardContent>
+                        <CardContent>
+                            <Button asChild className="w-full bg-accent text-accent-foreground hover:bg-accent/90">
+                            <Link href={`/announcements/${draw.id}`}>
+                                <Trophy className="mr-2 h-4 w-4" />
+                                {isAwaiting ? "Watch Ceremony" : "View Ceremony"}
+                            </Link>
+                            </Button>
+                        </CardContent>
+                    </Card>
+                );
+            })}
             </div>
         ) : (
             <div className="text-center py-16 text-muted-foreground">
