@@ -103,21 +103,21 @@ export const scheduleWinnerSelection = ai.defineFlow(
             const allRoundWinners = currentDrawData.roundWinners!;
             const announcedWinners = currentDrawData.announcedWinners || { 1: [], 2: [], 3: [], 4: [] };
 
-            const announceRound = async (round: number, delay: number, nextRoundDelay: number) => {
+            const announceRound = async (round: number, winnerRevealDelay: number, nextRoundDelay: number) => {
                  if (announcedWinners[round] && announcedWinners[round].length >= allRoundWinners[round].length) {
                     return true; // Round already fully announced
                 }
                 console.log(`Announcing round ${round} for draw ${drawId}`);
                 for (const winnerId of allRoundWinners[round]) {
                      if (!announcedWinners[round] || !announcedWinners[round].includes(winnerId)) {
-                        await sleep(delay);
+                        await sleep(winnerRevealDelay); // Pause before revealing each winner
                         await updateDoc(drawRef, {
                             [`announcedWinners.${round}`]: arrayUnion(winnerId)
                         });
                         console.log(`Announced winner ${winnerId} for round ${round}`);
                     }
                 }
-                await sleep(nextRoundDelay);
+                await sleep(nextRoundDelay); // Pause after the round is fully announced
                 return true;
             };
 
@@ -126,7 +126,7 @@ export const scheduleWinnerSelection = ai.defineFlow(
             if (await announceRound(1, 5000, 10000)) { // 5s reveal delay, 10s to next round
                 if (await announceRound(2, 3000, 10000)) { // 3s reveal delay, 10s to next round
                     if (await announceRound(3, 3000, 10000)) { // 3s reveal delay, 10s to finale
-                        if (await announceRound(4, 3000, 10000)) { // 3s reveal delay, 10s to finish
+                        if (await announceRound(4, 5000, 10000)) { // 5s reveal for final winner, 10s to finish
                              await updateDoc(drawRef, { status: 'finished' });
                              console.log(`Finished announcing all winners for draw ${drawId}`);
                         }

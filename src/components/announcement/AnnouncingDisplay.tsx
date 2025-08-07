@@ -6,8 +6,9 @@ import type { Draw, FullTicket, User } from '@/lib/types';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { TicketCard } from '../TicketCard';
 import { RoundResultsCard } from './RoundResultsCard';
-import RoundCompletedDisplay from './RoundCompletedDisplay';
 import { getTicketsByIds, STAGE_CONFIG } from './utils';
+import { Progress } from '../ui/progress';
+import { Loader2 } from 'lucide-react';
 
 
 export function AnnouncingDisplay({
@@ -17,7 +18,8 @@ export function AnnouncingDisplay({
     revealingTicketId,
     onRevealComplete,
     currentStage,
-    isIntermission
+    isIntermission,
+    completedStage
 }: {
     draw: Draw;
     allTickets: FullTicket[];
@@ -26,23 +28,9 @@ export function AnnouncingDisplay({
     onRevealComplete: (ticketId: string) => void;
     currentStage: number;
     isIntermission: boolean;
+    completedStage: number | null;
 }) {
     const userTickets = allTickets?.filter(t => t.userId === user?.id) || [];
-    
-    if (isIntermission) {
-        const completedStage = currentStage - 1;
-        const stageConfig = STAGE_CONFIG[completedStage as keyof typeof STAGE_CONFIG];
-        const winnersOfCompletedStage = getTicketsByIds(draw.announcedWinners?.[completedStage] || [], allTickets);
-
-        return (
-            <RoundCompletedDisplay 
-                stage={completedStage}
-                stageConfig={stageConfig}
-                tickets={winnersOfCompletedStage}
-            />
-        );
-    }
-
     const stageConfig = STAGE_CONFIG[currentStage as keyof typeof STAGE_CONFIG];
     
     if (!stageConfig || currentStage > 3) {
@@ -126,7 +114,20 @@ export function AnnouncingDisplay({
                     revealingTicket={revealingTicket}
                     onRevealComplete={onRevealComplete}
                     placeholdersCount={placeholdersCount}
+                    isCelebrating={isIntermission && completedStage === currentStage}
                 />
+                
+                {isIntermission && completedStage !== currentStage && (
+                    <Card>
+                        <CardHeader>
+                            <CardTitle>Preparing Next Round...</CardTitle>
+                        </CardHeader>
+                        <CardContent className="flex flex-col items-center justify-center gap-4 py-8">
+                            <Loader2 className="h-12 w-12 animate-spin text-primary"/>
+                            <Progress value={100} className="w-full max-w-sm transition-all duration-[9000ms] ease-linear" />
+                        </CardContent>
+                    </Card>
+                )}
                 
                 {Array.from({ length: currentStage - 1 }, (_, i) => currentStage - 1 - i).map(stageNum => {
                      const stageData = STAGE_CONFIG[stageNum as keyof typeof STAGE_CONFIG];
@@ -140,6 +141,7 @@ export function AnnouncingDisplay({
                                 title={`${stageData.title} (Completed)`}
                                 tickets={announcedForStage}
                                 stage={stageNum}
+                                isCelebrating={isIntermission && completedStage === stageNum}
                             />
                         );
                     }

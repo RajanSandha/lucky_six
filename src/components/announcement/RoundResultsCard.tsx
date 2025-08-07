@@ -15,7 +15,8 @@ export function RoundResultsCard({
     isCurrentRound = false,
     revealingTicket,
     onRevealComplete,
-    placeholdersCount
+    placeholdersCount,
+    isCelebrating = false,
 }: { 
     title: string; 
     tickets: FullTicket[]; 
@@ -24,6 +25,7 @@ export function RoundResultsCard({
     revealingTicket?: FullTicket;
     onRevealComplete?: (id: string) => void;
     placeholdersCount?: number;
+    isCelebrating?: boolean;
 }) {
     const stageData = STAGE_CONFIG[stage as keyof typeof STAGE_CONFIG];
     const count = stageData.count;
@@ -43,6 +45,7 @@ export function RoundResultsCard({
                         ticket={ticket}
                         isSelected={true}
                         round={stage}
+                        isHighlighted={isCelebrating}
                     />
                 ))}
                 {isActivelyRevealing && (

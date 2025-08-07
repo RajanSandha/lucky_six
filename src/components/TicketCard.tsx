@@ -58,7 +58,7 @@ export function TicketCard({
             isEliminated && !isSelected ? "border-destructive bg-destructive/10 opacity-30 transform scale-90" : "",
             isFinalist && !isWinner ? "animate-pulse border-purple-500 shadow-purple-500/50 shadow-lg" : "",
             isWinner ? "border-accent bg-accent/20 shadow-accent/50 shadow-xl" : "",
-            isHighlighted ? "border-green-500 scale-110" : "",
+            isHighlighted ? "animate-pulse scale-110 shadow-lg" : "",
         )}>
             <div className="flex justify-center gap-1 mb-2">
                 {isRevealing ? (

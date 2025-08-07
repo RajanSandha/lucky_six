@@ -99,7 +99,11 @@ export function useCeremonyState(draw: Draw | null) {
     const [revealedWinnerIds, setRevealedWinnerIds] = useState<Set<string>>(new Set());
     const [currentStage, setCurrentStage] = useState(1);
     const [isIntermission, setIsIntermission] = useState(false);
+    const [completedStage, setCompletedStage] = useState<number | null>(null);
+
     const intermissionTimer = useRef<NodeJS.Timeout | null>(null);
+    const finaleTimer = useRef<NodeJS.Timeout | null>(null);
+
 
     const handleRevealComplete = useCallback((ticketId: string) => {
         setRevealedWinnerIds(prev => new Set(prev).add(ticketId));
@@ -109,11 +113,12 @@ export function useCeremonyState(draw: Draw | null) {
     useEffect(() => {
         if (!draw) return;
 
-        // Cleanup any running timers on re-render
-        if (intermissionTimer.current) {
-            clearTimeout(intermissionTimer.current);
-            intermissionTimer.current = null;
+        const cleanupTimers = () => {
+             if (intermissionTimer.current) clearTimeout(intermissionTimer.current);
+             if (finaleTimer.current) clearTimeout(finaleTimer.current);
         }
+        
+        cleanupTimers();
 
         const stage = getCurrentStage(draw);
         setCurrentStage(stage);
@@ -128,7 +133,12 @@ export function useCeremonyState(draw: Draw | null) {
             const semiFinalAnnounced = announcedRounds.includes(3) && draw.announcedWinners![3].length === STAGE_CONFIG[3].count;
             
             if (semiFinalAnnounced) {
-                if (viewState !== 'finale') setViewState('finale');
+                // If finale hasn't been triggered yet, set a timer for it.
+                if (viewState !== 'finale' && !finaleTimer.current) {
+                    finaleTimer.current = setTimeout(() => {
+                         setViewState('finale');
+                    }, 5000); // 5 second delay before finale
+                }
                 return;
             }
 
@@ -145,16 +155,19 @@ export function useCeremonyState(draw: Draw | null) {
 
                 if (isPrevStageComplete && !isCurrentStageStarted && !isIntermission) {
                     setIsIntermission(true);
+                    setCompletedStage(prevStage);
                     intermissionTimer.current = setTimeout(() => {
                         setIsIntermission(false);
-                        intermissionTimer.current = null;
+                        setCompletedStage(null);
                     }, 10000); // 10 second intermission
-                    return; // Return here to show intermission screen
+                    return; 
                 }
             }
             
             if (isIntermission && isCurrentStageStarted) {
                 setIsIntermission(false);
+                setCompletedStage(null);
+                if (intermissionTimer.current) clearTimeout(intermissionTimer.current);
             }
 
             if(isIntermission) return; // Don't proceed to reveal logic if in intermission
@@ -181,11 +194,7 @@ export function useCeremonyState(draw: Draw | null) {
             }
         }
         
-        return () => {
-             if (intermissionTimer.current) {
-                clearTimeout(intermissionTimer.current);
-             }
-        }
+        return cleanupTimers;
 
     }, [draw, revealedWinnerIds, revealingTicketId, viewState, isIntermission]);
 
@@ -194,6 +203,7 @@ export function useCeremonyState(draw: Draw | null) {
         revealingTicketId, setRevealingTicketId, 
         handleRevealComplete,
         currentStage,
-        isIntermission
+        isIntermission,
+        completedStage
     };
 }

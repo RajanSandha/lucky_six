@@ -20,7 +20,8 @@ export function AnnounceWinner({ params }: { params: { id: string } }) {
         revealingTicketId, 
         handleRevealComplete,
         currentStage,
-        isIntermission
+        isIntermission,
+        completedStage
     } = useCeremonyState(draw);
 
     if (loading) {
@@ -58,6 +59,7 @@ export function AnnounceWinner({ params }: { params: { id: string } }) {
             onRevealComplete={handleRevealComplete}
             currentStage={currentStage}
             isIntermission={isIntermission}
+            completedStage={completedStage}
         />
     );
 }
