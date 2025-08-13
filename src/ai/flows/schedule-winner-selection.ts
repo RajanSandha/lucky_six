@@ -11,6 +11,7 @@ import { z } from 'zod';
 import { db } from '@/lib/firebase';
 import { collection, query, where, getDocs, Timestamp, doc, updateDoc, arrayUnion } from 'firebase/firestore';
 import type { Draw } from '@/lib/types';
+import { sendAnnouncementStartingNotification } from '@/services/notification-service';
 
 const sleep = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
 
@@ -81,6 +82,9 @@ export const scheduleWinnerSelection = ai.defineFlow(
                 const round2 = round1.slice(0, 10).sort(() => 0.5 - Math.random());
                 const round3 = round2.slice(0, 3).sort(() => 0.5 - Math.random());
                 const round4 = round3.slice(0, 1).sort(() => 0.5 - Math.random());
+
+                // Send a notification that the announcement is about to start
+                await sendAnnouncementStartingNotification(drawData);
 
                 await updateDoc(drawRef, {
                     roundWinners: { 1: round1, 2: round2, 3: round3, 4: round4 },

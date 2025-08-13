@@ -7,6 +7,8 @@ import { doc, getDoc, setDoc, collection, query, where, getDocs, updateDoc, incr
 import type { User, Draw } from '@/lib/types';
 import { Loader2 } from 'lucide-react';
 import { getAuth, type User as AuthUser } from 'firebase/auth';
+import { getToken, onMessage } from 'firebase/messaging';
+import { messaging } from '@/lib/firebase';
 
 // Define the shape of the context
 interface AuthContextType {
@@ -16,6 +18,7 @@ interface AuthContextType {
   login: (phone: string) => Promise<boolean>;
   register: (authUser: AuthUser, name: string, phone: string, referralCode?: string, drawId?: string) => Promise<{success: boolean, message?: string}>;
   logout: () => void;
+  updateUserFCMToken: (token: string) => Promise<void>;
 }
 
 // Helper to generate a 6-digit string
@@ -47,6 +50,7 @@ const AuthContext = createContext<AuthContextType>({
   login: async () => false,
   register: async () => ({ success: false }),
   logout: () => {},
+  updateUserFCMToken: async () => {},
 });
 
 // Create a provider component
@@ -67,6 +71,21 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
     setLoading(false);
   }, []);
+
+   const updateUserFCMToken = async (token: string) => {
+    if (!user) return;
+
+    const userRef = doc(db, 'users', user.id);
+    try {
+      await updateDoc(userRef, {
+        fcmTokens: arrayUnion(token)
+      });
+      console.log('FCM token updated for user:', user.id);
+    } catch (error) {
+      console.error('Error updating FCM token:', error);
+    }
+  };
+
 
   const login = async (phone: string): Promise<boolean> => {
     setLoading(true);
@@ -123,6 +142,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
             ticketIds: [],
             referralCode: newReferralCode,
             referralsMade: 0,
+            fcmTokens: [],
         };
         
         let referralMessage = '';
@@ -210,7 +230,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   }
 
   return (
-    <AuthContext.Provider value={{ user, loading, isAdmin, login, register, logout }}>
+    <AuthContext.Provider value={{ user, loading, isAdmin, login, register, logout, updateUserFCMToken }}>
       {children}
     </AuthContext.Provider>
   );

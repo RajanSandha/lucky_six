@@ -8,6 +8,7 @@ export type User = {
   role: 'admin' | 'user'; // Explicitly add role
   referralCode?: string;
   referralsMade?: number;
+  fcmTokens?: string[];
 };
 
 export type Ticket = {

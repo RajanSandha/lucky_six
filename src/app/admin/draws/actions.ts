@@ -8,6 +8,8 @@ import { ref, uploadBytes, getDownloadURL, deleteObject } from 'firebase/storage
 import type { Draw } from '@/lib/types';
 import { scheduleWinnerSelection } from '@/ai/flows/schedule-winner-selection';
 import { localStringToUtc, getCurrentDateInUTC } from '@/lib/date-utils';
+import { sendNewDrawNotification } from '@/services/notification-service';
+
 
 const defaultDrawImage = 'https://firebasestorage.googleapis.com/v0/b/lucky-six-bxkzw.firebasestorage.app/o/istockphoto-1438698279-612x612.jpg?alt=media&token=3ee52ea3-be89-4642-a614-f02b12605ea6';
 
@@ -71,7 +73,10 @@ export async function createDraw(formData: FormData) {
       referralAvailable,
     };
 
-    await addDoc(collection(db, "draws"), newDrawData);
+    const docRef = await addDoc(collection(db, "draws"), newDrawData);
+
+    // Send notification about the new draw
+    await sendNewDrawNotification({ ...newDrawData, id: docRef.id });
 
     revalidatePath('/admin/draws');
     revalidatePath('/draws');
