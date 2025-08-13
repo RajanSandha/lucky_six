@@ -57,12 +57,24 @@ export default function LoginPage() {
     e.preventDefault();
     setIsLoading(true);
 
+    if (phone.length !== 10) {
+        toast({
+            title: "Invalid Phone Number",
+            description: "Please enter a valid 10-digit mobile number.",
+            variant: "destructive"
+        });
+        setIsLoading(false);
+        return;
+    }
+    
+    const fullPhoneNumber = `+91${phone}`;
+
     if (process.env.NEXT_PUBLIC_FIREBASE_AUTH_TEST_MODE === 'true') {
         // Mock confirmation for test mode
         const mockConfirmationResult = {
             confirm: async (code: string) => {
                 if (code === '123456') {
-                    return Promise.resolve({ user: { uid: `test_user_${phone}` } });
+                    return Promise.resolve({ user: { uid: `test_user_${fullPhoneNumber}` } });
                 } else {
                     return Promise.reject(new Error('Invalid test OTP'));
                 }
@@ -73,7 +85,7 @@ export default function LoginPage() {
         setStep(2);
         toast({
             title: "Test Mode Active",
-            description: `Enter 123456 as the OTP for ${phone}.`
+            description: `Enter 123456 as the OTP for ${fullPhoneNumber}.`
         });
         setIsLoading(false);
         return;
@@ -91,12 +103,12 @@ export default function LoginPage() {
     }
 
     try {
-        const result = await signInWithPhoneNumber(auth, phone, appVerifier);
+        const result = await signInWithPhoneNumber(auth, fullPhoneNumber, appVerifier);
         setConfirmationResult(result);
         setStep(2);
         toast({
             title: "OTP Sent!",
-            description: `An OTP has been sent to ${phone}.`
+            description: `An OTP has been sent to ${fullPhoneNumber}.`
         });
     } catch (error) {
         console.error("Error sending OTP:", error);
@@ -121,7 +133,7 @@ export default function LoginPage() {
     const enteredOtp = otp.join('');
     try {
         await confirmationResult.confirm(enteredOtp);
-        const success = await login(phone);
+        const success = await login(`+91${phone}`);
         if (success) {
             toast({
                 title: "Login Successful!",
@@ -178,7 +190,25 @@ export default function LoginPage() {
             <CardContent className="space-y-4">
               <div className="space-y-2">
                 <Label htmlFor="phone">Phone Number</Label>
-                <Input id="phone" type="tel" placeholder="+91 98765 43210" value={phone} onChange={e => setPhone(e.target.value)} required />
+                <div className="flex items-center gap-2">
+                    <div className="flex h-10 w-fit items-center justify-center rounded-md border border-input bg-background px-3 text-sm">
+                        +91
+                    </div>
+                    <Input 
+                        id="phone" 
+                        type="tel" 
+                        placeholder="98765 43210" 
+                        value={phone} 
+                        onChange={e => {
+                            const value = e.target.value;
+                            if (/^\d{0,10}$/.test(value)) {
+                                setPhone(value);
+                            }
+                        }}
+                        required 
+                        className="w-full"
+                    />
+                </div>
               </div>
                <div className="flex items-start space-x-2">
                 <Checkbox id="terms" onCheckedChange={(checked) => setTermsAccepted(checked === true)} />
@@ -196,7 +226,7 @@ export default function LoginPage() {
               </div>
             </CardContent>
             <CardFooter className="flex flex-col gap-4">
-              <Button type="submit" className="w-full bg-primary hover:bg-primary/90 text-primary-foreground" disabled={isLoading || !termsAccepted}>
+              <Button type="submit" className="w-full bg-primary hover:bg-primary/90 text-primary-foreground" disabled={isLoading || !termsAccepted || phone.length !== 10}>
                 {isLoading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <>Send OTP <ArrowRight className="ml-2 h-4 w-4" /></>}
               </Button>
               <p className="text-xs text-muted-foreground">
@@ -212,7 +242,7 @@ export default function LoginPage() {
             <form onSubmit={handleVerifyOtp}>
                 <CardHeader>
                     <CardTitle className="font-headline text-2xl">Enter OTP</CardTitle>
-                    <CardDescription>Enter the 6-digit OTP sent to {phone}.</CardDescription>
+                    <CardDescription>Enter the 6-digit OTP sent to +91{phone}.</CardDescription>
                 </CardHeader>
                 <CardContent>
                     <Label>OTP</Label>

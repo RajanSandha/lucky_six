@@ -76,8 +76,20 @@ export default function RegisterPage() {
   const handleSendOtp = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsLoading(true);
+
+    if (phone.length !== 10) {
+        toast({
+            title: "Invalid Phone Number",
+            description: "Please enter a valid 10-digit mobile number.",
+            variant: "destructive"
+        });
+        setIsLoading(false);
+        return;
+    }
+
+    const fullPhoneNumber = `+91${phone}`;
     
-    const userExists = await checkUserExists(phone);
+    const userExists = await checkUserExists(fullPhoneNumber);
     if (userExists) {
         toast({
             title: "User Already Exists",
@@ -93,7 +105,7 @@ export default function RegisterPage() {
         const mockConfirmationResult = {
             confirm: async (code: string) => {
                 if (code === '123456') {
-                    const mockUser = { uid: `test_user_${phone}` } as User;
+                    const mockUser = { uid: `test_user_${fullPhoneNumber}` } as User;
                     return Promise.resolve({ user: mockUser });
                 } else {
                     return Promise.reject(new Error('Invalid test OTP'));
@@ -105,7 +117,7 @@ export default function RegisterPage() {
         setStep(2);
         toast({
             title: "Test Mode Active",
-            description: `Enter 123456 as the OTP for ${phone}.`
+            description: `Enter 123456 as the OTP for ${fullPhoneNumber}.`
         });
         setIsLoading(false);
         return;
@@ -122,12 +134,12 @@ export default function RegisterPage() {
         return;
     }
     try {
-        const result = await signInWithPhoneNumber(auth, phone, appVerifier);
+        const result = await signInWithPhoneNumber(auth, fullPhoneNumber, appVerifier);
         setConfirmationResult(result);
         setStep(2);
         toast({
             title: "OTP Sent!",
-            description: `An OTP has been sent to ${phone}.`
+            description: `An OTP has been sent to ${fullPhoneNumber}.`
         });
     } catch (error) {
         console.error("Error sending OTP:", error);
@@ -152,7 +164,7 @@ export default function RegisterPage() {
     const enteredOtp = otp.join('');
     try {
         const credential = await confirmationResult.confirm(enteredOtp);
-        const result = await register(credential.user, name, phone, referralCode, drawId);
+        const result = await register(credential.user, name, `+91${phone}`, referralCode, drawId);
         if (result.success) {
             toast({
                 title: "Registration Successful!",
@@ -220,7 +232,25 @@ export default function RegisterPage() {
               </div>
               <div className="space-y-2">
                 <Label htmlFor="phone">Phone Number</Label>
-                <Input id="phone" type="tel" placeholder="+91 98765 43210" value={phone} onChange={e => setPhone(e.target.value)} required />
+                <div className="flex items-center gap-2">
+                    <div className="flex h-10 w-fit items-center justify-center rounded-md border border-input bg-background px-3 text-sm">
+                        +91
+                    </div>
+                    <Input 
+                        id="phone" 
+                        type="tel" 
+                        placeholder="98765 43210" 
+                        value={phone} 
+                        onChange={e => {
+                            const value = e.target.value;
+                            if (/^\d{0,10}$/.test(value)) {
+                                setPhone(value);
+                            }
+                        }}
+                        required 
+                        className="w-full"
+                    />
+                </div>
               </div>
                <div className="flex items-start space-x-2">
                 <Checkbox id="terms" onCheckedChange={(checked) => setTermsAccepted(checked === true)} />
@@ -238,7 +268,7 @@ export default function RegisterPage() {
               </div>
             </CardContent>
             <CardFooter className="flex flex-col gap-4">
-              <Button type="submit" className="w-full bg-primary hover:bg-primary/90 text-primary-foreground" disabled={isLoading || !termsAccepted}>
+              <Button type="submit" className="w-full bg-primary hover:bg-primary/90 text-primary-foreground" disabled={isLoading || !termsAccepted || phone.length !== 10}>
                 {isLoading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <>Send OTP <ArrowRight className="ml-2 h-4 w-4" /></>}
               </Button>
               <p className="text-xs text-muted-foreground">
@@ -254,7 +284,7 @@ export default function RegisterPage() {
             <form onSubmit={handleVerifyOtp}>
                 <CardHeader>
                     <CardTitle className="font-headline text-2xl">Verify Your Phone</CardTitle>
-                    <CardDescription>Enter the 6-digit OTP sent to {phone}.</CardDescription>
+                    <CardDescription>Enter the 6-digit OTP sent to +91{phone}.</CardDescription>
                 </CardHeader>
                 <CardContent>
                     <Label>OTP</Label>
