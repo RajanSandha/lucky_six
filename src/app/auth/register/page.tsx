@@ -21,6 +21,7 @@ import { useAuth } from '@/context/AuthContext';
 import { checkUserExists } from './actions';
 import { getAuth, RecaptchaVerifier, signInWithPhoneNumber, type ConfirmationResult, type Auth, type User } from 'firebase/auth';
 import { Checkbox } from '@/components/ui/checkbox';
+import { ReferralInfoDialog } from '@/components/ReferralInfoDialog';
 
 
 const setupRecaptcha = (auth: Auth) => {
@@ -55,6 +56,7 @@ export default function RegisterPage() {
   const [referralCode, setReferralCode] = useState('');
   const [drawId, setDrawId] = useState('');
   const [termsAccepted, setTermsAccepted] = useState(false);
+  const [isReferralModalOpen, setIsReferralModalOpen] = useState(false);
   const router = useRouter();
   const searchParams = useSearchParams();
   const { toast } = useToast();
@@ -63,12 +65,11 @@ export default function RegisterPage() {
 
   useEffect(() => {
     const refCode = searchParams.get('ref');
-    if (refCode) {
-      setReferralCode(refCode);
-    }
     const dId = searchParams.get('drawId');
-    if (dId) {
+    if (refCode && dId) {
+      setReferralCode(refCode);
       setDrawId(dId);
+      setIsReferralModalOpen(true); // Open the modal on referral visit
     }
   }, [searchParams]);
 
@@ -197,6 +198,13 @@ export default function RegisterPage() {
 
   return (
     <div className="container mx-auto flex items-center justify-center min-h-[calc(100vh-8rem)] py-12 px-4">
+      {drawId && (
+        <ReferralInfoDialog
+          open={isReferralModalOpen}
+          onOpenChange={setIsReferralModalOpen}
+          drawId={drawId}
+        />
+      )}
       <div id="recaptcha-container"></div>
       <Card className="w-full max-w-md shadow-xl">
         {step === 1 && (
