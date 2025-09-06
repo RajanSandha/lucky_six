@@ -1,10 +1,9 @@
-
 name: Trigger Scheduler Cron Job
 
 on:
-  schedule:
-    # Runs every 5 minutes
-    - cron: '*/5 * * * *'
+  # schedule:
+  #   # Runs every 5 minutes
+  #   - cron: '*/5 * * * *'
   workflow_dispatch: # Allows manual triggering from the Actions tab
 
 jobs:
